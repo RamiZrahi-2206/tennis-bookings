@@ -105,14 +105,26 @@
       const d=document.createElement("td"); d.className="n"; d.textContent= p ? p.t : 0;
       tr.append(a,b,c,d); tb.appendChild(tr); });
 
+    // rotation: a round ends only when every player has the same number of bookings.
+    // Whoever has the fewest bookings is still due in the current round.
+    const cnt = n => stats[n] ? stats[n].t : 0;
+    const order = players.slice().sort((a,b)=> cnt(a)-cnt(b) || a.localeCompare(b,"he"));
+    const minC = order.length ? cnt(order[0]) : 0;
+    const due = order.filter(n=>cnt(n)===minC), done = order.filter(n=>cnt(n)>minC);
+    const times = c => c===1 ? "הזמנה אחת" : c+" הזמנות";
     let txt="🎾 מי הזמין אחרון\n";
-    if(!last) txt+="\nעדיין אין הזמנות.";
-    else {
-      txt+="\n"+last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n\nלפי מגרש:\n";
-      COURTS.forEach(c=>{ const r=sorted.find(x=>x.court===c); txt+="• "+c+": "+(r? r.name+" – "+dmy(r.date) : "אין הזמנות")+"\n"; });
-      const o=sorted.find(x=>isOther(x.court)); if(o) txt+="• "+o.court+": "+o.name+" – "+dmy(o.date)+"\n";
+    txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
+    if(order.length){
+      txt+="\n🔄 סבב "+(minC+1)+(done.length? "" : " (סבב חדש)")+"\n";
+      txt+="מי מזמין הבא? התור של:\n";
+      due.forEach(n=>{ txt+="• "+n+" ("+times(cnt(n))+")\n"; });
+      if(done.length){
+        txt+="\nכבר הזמינו בסבב הזה:\n";
+        done.forEach(n=>{ txt+="✓ "+n+" ("+times(cnt(n))+")\n"; });
+      }
+      txt+="\nסבב חדש מתחיל רק אחרי שכל השחקנים מגיעים לאותה כמות הזמנות.\n";
     }
-    txt+="\n"+location.href.split("#")[0];
+    txt+="\n"+location.origin+location.pathname.replace(/index\.html$/,"");
     $("shareText").value=txt.trim();
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
   }
