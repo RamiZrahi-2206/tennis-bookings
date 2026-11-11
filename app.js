@@ -105,27 +105,23 @@
       const d=document.createElement("td"); d.className="n"; d.textContent= p ? p.t : 0;
       tr.append(a,b,c,d); tb.appendChild(tr); });
 
-    // rotation: a round ends only when every player has the same number of bookings.
-    // Whoever has the fewest bookings is still due in the current round.
-    const times = c => c===1 ? "הזמנה אחת" : c+" הזמנות";
-    // a player who joined later starts at the round the group was in (count_offset), so they are not "behind"
-    const real = n => stats[n] ? stats[n].t : 0;
-    const cnt = n => real(n) + (offsets[n]||0);
-    const label = n => times(real(n)) + (offsets[n] ? " · הצטרף בסבב "+(offsets[n]+1) : "");
-    const order = players.slice().sort((a,b)=> cnt(a)-cnt(b) || a.localeCompare(b,"he"));
-    const minC = order.length ? cnt(order[0]) : 0;
-    const due = order.filter(n=>cnt(n)===minC), done = order.filter(n=>cnt(n)>minC);
+    // rotation by rounds. Rounds a player completed = bookings + join offset (set in the DB when they join).
+    // Players who never booked and never joined are not shown. The current round is one past the
+    // fewest rounds any active player completed; when everyone has paid in it, the next round starts.
+    const done = n => (stats[n] ? stats[n].t : 0) + (offsets[n]||0);
+    const active = players.filter(n=>done(n)>0);
+    const base = active.length ? Math.min(...active.map(done)) : 0;
+    const round = base + 1;
+    const byAbc = (a,b)=>a.localeCompare(b,"he");
+    const paid = active.filter(n=>done(n)>base).sort(byAbc);
+    const notYet = active.filter(n=>done(n)===base).sort(byAbc);
     let txt="🎾 מי הזמין אחרון\n";
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
-    if(order.length){
-      txt+="\n🔄 סבב "+(minC+1)+(done.length? "" : " (סבב חדש)")+"\n";
-      txt+="מי מזמין הבא? התור של:\n";
-      due.forEach(n=>{ txt+="• "+n+" ("+label(n)+")\n"; });
-      if(done.length){
-        txt+="\nכבר הזמינו בסבב הזה:\n";
-        done.forEach(n=>{ txt+="✓ "+n+" ("+label(n)+")\n"; });
-      }
-      txt+="\nסבב חדש מתחיל רק אחרי שכל השחקנים מגיעים לאותה כמות הזמנות.\n";
+    if(active.length){
+      txt+="\n🔄 סבב "+round+"\n";
+      if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
+      txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; });
+      txt+="\nמי מזמין הבא?\n";
     }
     txt+="\n"+location.origin+location.pathname.replace(/index\.html$/,"");
     $("shareText").value=txt.trim();
