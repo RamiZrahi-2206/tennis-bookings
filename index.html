@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Secular+One&display=swap">
 <style>
-/* Layout: one narrow column. The answer first (who booked last), then last booker per court, then the form, history and per-player table. */
+/* Layout: one narrow column. The answer first (who booked last), then the form, per-player table and history. */
 :root{
   --bg:#eef3ee; --surface:#ffffff; --fg:#14261b; --muted:#5b6e61; --line:#d3ddd5;
   --court:#1f6b45; --court-ink:#ffffff; --ball:#c9e34a; --ball-ink:#1b2a0c; --danger:#b3261e; --soft:#e2ece4;
@@ -57,7 +57,8 @@ input[type=text],input[type=date],select{width:100%;font:inherit;padding:10px 12
 input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:440px){.row{grid-template-columns:1fr}}
-.courts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.courts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+@media (max-width:440px){.courts{grid-template-columns:repeat(2,1fr)}}
 .courts button,.chips button{font:inherit;padding:10px 6px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;font-weight:500}
 .courts button[aria-pressed=true],.chips button[aria-pressed=true]{background:var(--court);color:var(--court-ink);border-color:var(--court)}
 .primary{font:inherit;font-weight:700;padding:12px;border-radius:10px;border:0;background:var(--court);color:var(--court-ink);cursor:pointer;font-size:1.05rem}
@@ -112,6 +113,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
         <div>
           <label id="courtLabel">מגרש</label>
           <div class="courts" role="group" aria-labelledby="courtLabel" id="courtBtns"></div>
+          <div id="otherWrap" hidden style="margin-top:10px"><label for="otherCourt">שם המגרש</label><input type="text" id="otherCourt" maxlength="40" autocomplete="off" placeholder="למשל: נס ציונה, מרכז הטניס"></div>
         </div>
         <div><label for="notes">מתחם / הערות (לא חובה)</label><input type="text" id="notes" maxlength="80" placeholder="למשל: נאות שז״ר, 19:00"></div>
         <button class="primary" id="submit" type="submit" disabled>רשום הזמנה</button>

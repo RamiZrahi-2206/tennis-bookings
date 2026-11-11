@@ -2,6 +2,7 @@
   const SUPABASE_URL = "https://xcjbwctlnjybabrfkvcn.supabase.co";
   const SUPABASE_KEY = "sb_publishable_XqMv4nZHVi_xN28fWNX_UQ_QJC8JueZ"; // public publishable key, protected by RLS
   const COURTS = ["יבנה","רחובות","ראשון לציון"];
+  const OTHER = "אחר"; // any court outside the three; its name is typed in
   const $ = id => document.getElementById(id);
   let court = COURTS[0], filter = "הכל", rows = [], players = [], sb = null, pendingDel = null, ready = false;
 
@@ -23,8 +24,9 @@
       b.setAttribute("aria-pressed", String(get()===c));
       b.onclick=()=>{ set(c); makeBtns(el,list,get,set); render(); }; el.appendChild(b); });
   }
-  makeBtns($("courtBtns"), COURTS, ()=>court, v=>court=v);
-  makeBtns($("filterBtns"), ["הכל",...COURTS], ()=>filter, v=>{filter=v;});
+  makeBtns($("courtBtns"), [...COURTS, OTHER], ()=>court, v=>{ court=v; $("otherWrap").hidden = v!==OTHER; if(v===OTHER) setTimeout(()=>$("otherCourt").focus(),0); });
+  makeBtns($("filterBtns"), ["הכל",...COURTS,OTHER], ()=>filter, v=>{filter=v;});
+  const isOther = c => !COURTS.includes(c);
 
   function setMsg(t, err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
 
@@ -76,7 +78,7 @@
       const a=document.createElement("span"); a.className="ago"; a.textContent="רשמו את ההזמנה הראשונה בטופס למטה"; meta.appendChild(a);
     }
 
-    const shown = sorted.filter(r=>filter==="הכל"||r.court===filter);
+    const shown = sorted.filter(r=>filter==="הכל"||(filter===OTHER ? isOther(r.court) : r.court===filter));
     const h=$("history"); h.innerHTML="";
     if(!shown.length) h.innerHTML='<p class="empty">'+(rows.length?"אין הזמנות ב"+filter+".":"ההזמנות של הקבוצה יופיעו כאן, מהחדשה לישנה.")+'</p>';
     shown.forEach((r,i)=>h.appendChild(itemEl(r, i===0)));
@@ -108,6 +110,7 @@
     else {
       txt+="\n"+last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n\nלפי מגרש:\n";
       COURTS.forEach(c=>{ const r=sorted.find(x=>x.court===c); txt+="• "+c+": "+(r? r.name+" – "+dmy(r.date) : "אין הזמנות")+"\n"; });
+      const o=sorted.find(x=>isOther(x.court)); if(o) txt+="• "+o.court+": "+o.name+" – "+dmy(o.date)+"\n";
     }
     txt+="\n"+location.href.split("#")[0];
     $("shareText").value=txt.trim();
@@ -133,13 +136,15 @@
     const name=$("name").value.trim(), date=$("date").value, notes=$("notes").value.trim();
     if(!name){ setMsg("בחרו מי הזמין", true); $("name").focus(); return; }
     if(!date){ setMsg("בחרו תאריך", true); $("date").focus(); return; }
+    const courtName = court===OTHER ? $("otherCourt").value.trim() : court;
+    if(!courtName){ setMsg("כתבו את שם המגרש", true); $("otherCourt").focus(); return; }
     if(!sb) return;
     $("submit").disabled=true;
-    const {error} = await sb.from("bookings").insert({name, date, court, notes});
+    const {error} = await sb.from("bookings").insert({name, date, court: courtName, notes});
     if(error) setMsg("ההזמנה לא נשמרה. נסו שוב.", true);
     else {
       try{ localStorage.setItem("tennis-name", name); }catch(_){}
-      $("notes").value=""; setMsg("נרשם: "+name+" · "+court+" · "+dmy(date));
+      $("notes").value=""; setMsg("נרשם: "+name+" · "+courtName+" · "+dmy(date));
       await load();
     }
     $("submit").disabled=false;
