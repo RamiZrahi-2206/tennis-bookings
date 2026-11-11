@@ -101,7 +101,9 @@
     names.forEach((n,i)=>{ const p=stats[n], tr=document.createElement("tr");
       const a=document.createElement("td"); a.textContent=n;
       if(i===0 && p && names.length>1){ const s=document.createElement("span"); s.className="long"; s.textContent="הכי מזמן"; a.appendChild(s); }
-      const b=document.createElement("td"); b.textContent= p ? dmy(p.last.date)+" · "+agoText(p.last.date) : "עדיין לא הזמין";
+      const b=document.createElement("td");
+      if(p){ b.textContent=dmy(p.last.date); const ago=document.createElement("span"); ago.className="sub"; ago.textContent=agoText(p.last.date); b.appendChild(ago); }
+      else b.textContent="עדיין לא הזמין";
       const c=document.createElement("td"); c.textContent= p ? p.last.court : "—";
       const d=document.createElement("td"); d.className="n"; d.textContent= p ? p.t : 0;
       tr.append(a,b,c,d); tb.appendChild(tr); });
