@@ -106,7 +106,7 @@
     if(!names.length) tb.innerHTML='<tr><td colspan="4" class="empty">אין עדיין נתונים</td></tr>';
     names.forEach((n,i)=>{ const p=stats[n], tr=document.createElement("tr");
       const a=document.createElement("td"); a.textContent=n;
-      if(i===0 && names.length>1){ const s=document.createElement("span"); s.className="long"; s.textContent="הכי מזמן"; a.appendChild(s); }
+      if(i===0 && p && names.length>1){ const s=document.createElement("span"); s.className="long"; s.textContent="הכי מזמן"; a.appendChild(s); }
       const b=document.createElement("td"); b.textContent= p ? dmy(p.last.date)+" · "+agoText(p.last.date) : "עדיין לא הזמין";
       const c=document.createElement("td"); c.textContent= p ? p.last.court : "—";
       const d=document.createElement("td"); d.className="n"; d.textContent= p ? p.t : 0;
