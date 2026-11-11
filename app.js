@@ -17,7 +17,6 @@
   const byNewest = (a,b)=> b.date.localeCompare(a.date) || String(b.created_at||"").localeCompare(String(a.created_at||""));
 
   $("date").value = todayISO();
-  try{ const n=localStorage.getItem("tennis-name"); if(n) $("name").value=n; }catch(e){}
 
   function makeBtns(el, list, get, set){
     el.innerHTML="";
@@ -88,7 +87,12 @@
     // per player: last booking — the group's players first, plus anyone else who booked
     const stats={}; sorted.forEach(r=>{ const p=stats[r.name]; if(!p) stats[r.name]={last:r,t:1}; else p.t++; });
     const names=[...players, ...Object.keys(stats).filter(n=>!players.includes(n))];
-    $("names").innerHTML=""; names.forEach(n=>{const o=document.createElement("option"); o.value=n; $("names").appendChild(o);});
+    // "who booked" dropdown: the group's players, alphabetical
+    const sel=$("name"); let keep=sel.value;
+    if(!keep){ try{ keep=localStorage.getItem("tennis-name")||""; }catch(e){} }
+    sel.innerHTML='<option value="">בחרו שם…</option>';
+    players.slice().sort((a,b)=>a.localeCompare(b,"he")).forEach(n=>{const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o);});
+    if(players.includes(keep)) sel.value=keep;
     // never booked first, then whoever booked longest ago
     names.sort((a,b)=>{ const A=stats[a], B=stats[b]; if(!A&&!B) return 0; if(!A) return -1; if(!B) return 1; return byNewest(B.last,A.last); });
     const tb=$("sumBody"); tb.innerHTML="";
@@ -122,7 +126,7 @@
   $("form").addEventListener("submit", async e=>{
     e.preventDefault();
     const name=$("name").value.trim(), date=$("date").value, notes=$("notes").value.trim();
-    if(!name){ setMsg("כתבו מי הזמין", true); $("name").focus(); return; }
+    if(!name){ setMsg("בחרו מי הזמין", true); $("name").focus(); return; }
     if(!date){ setMsg("בחרו תאריך", true); $("date").focus(); return; }
     if(!sb) return;
     $("submit").disabled=true;

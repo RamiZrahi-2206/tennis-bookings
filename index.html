@@ -46,7 +46,7 @@ h1{font-size:.8rem;font-weight:500;margin:0 0 12px;opacity:.85;letter-spacing:.0
 section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
 h2{font-family:var(--font-display);font-weight:400;font-size:1.25rem;margin:0}
 label{font-size:.85rem;color:var(--muted);font-weight:500;display:block;margin-bottom:4px}
-input[type=text],input[type=date]{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+input[type=text],input[type=date],select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
 input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:440px){.row{grid-template-columns:1fr}}
@@ -98,7 +98,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <form id="form" novalidate>
       <div style="display:flex;flex-direction:column;gap:12px">
         <div class="row">
-          <div><label for="name">מי הזמין</label><input type="text" id="name" list="names" autocomplete="off" placeholder="שם מלא" maxlength="40"></div>
+          <div><label for="name">מי הזמין</label><select id="name"><option value="">בחרו שם…</option></select></div>
           <div><label for="date">תאריך המשחק</label><input type="date" id="date"></div>
         </div>
         <div>
@@ -110,7 +110,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
         <p class="msg" id="msg" role="status">מתחבר לרשימה המשותפת…</p>
       </div>
     </form>
-    <datalist id="names"></datalist>
   </section>
 
   <section aria-labelledby="listTitle">
