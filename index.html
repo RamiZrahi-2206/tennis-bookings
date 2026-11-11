@@ -59,7 +59,8 @@ input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{o
 .msg.err{color:var(--danger)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chips button{padding:6px 12px;font-size:.9rem;border-radius:999px}
-.list{display:flex;flex-direction:column;gap:6px}
+.list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;overscroll-behavior:contain;padding:2px}
+.scroll-hint{font-size:.8rem;color:var(--muted);margin:0}
 .item{display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--soft)}
 .item .date{font-variant-numeric:tabular-nums;font-size:.85rem;color:var(--muted);min-width:5.2em}
 .item .who{font-weight:700;min-width:0;overflow-wrap:anywhere}
@@ -112,19 +113,19 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     </form>
   </section>
 
-  <section aria-labelledby="listTitle">
-    <h2 id="listTitle">היסטוריית הזמנות</h2>
-    <div class="chips" role="group" aria-label="סינון לפי מגרש" id="filterBtns"></div>
-    <div class="list" id="history"><p class="empty">ההזמנות של הקבוצה יופיעו כאן, מהחדשה לישנה.</p></div>
-    <button type="button" class="more" id="moreBtn" hidden>הצג עוד</button>
-  </section>
-
   <section aria-labelledby="sumTitle">
     <h2 id="sumTitle">מתי כל אחד הזמין לאחרונה</h2>
     <div style="overflow-x:auto"><table>
       <thead><tr><th>שחקן</th><th>הזמנה אחרונה</th><th>מגרש</th><th style="text-align:end">סה״כ</th></tr></thead>
       <tbody id="sumBody"><tr><td colspan="4" class="empty">אין עדיין נתונים</td></tr></tbody>
     </table></div>
+  </section>
+
+  <section aria-labelledby="listTitle">
+    <h2 id="listTitle">היסטוריית הזמנות</h2>
+    <div class="chips" role="group" aria-label="סינון לפי מגרש" id="filterBtns"></div>
+    <div class="list" id="history" tabindex="0" aria-label="היסטוריית הזמנות, אפשר לגלול"><p class="empty">ההזמנות של הקבוצה יופיעו כאן, מהחדשה לישנה.</p></div>
+    <p class="scroll-hint" id="scrollHint" hidden>גללו ברשימה כדי לראות הזמנות קודמות</p>
   </section>
 
   <section aria-labelledby="shareTitle">

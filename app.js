@@ -3,8 +3,7 @@
   const SUPABASE_KEY = "sb_publishable_XqMv4nZHVi_xN28fWNX_UQ_QJC8JueZ"; // public publishable key, protected by RLS
   const COURTS = ["יבנה","רחובות","ראשון לציון"];
   const $ = id => document.getElementById(id);
-  let court = COURTS[0], filter = "הכל", rows = [], players = [], sb = null, pendingDel = null, showAll = false, ready = false;
-  const PAGE = 15;
+  let court = COURTS[0], filter = "הכל", rows = [], players = [], sb = null, pendingDel = null, ready = false;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
   const dmy = iso => { const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y.slice(2); };
@@ -25,7 +24,7 @@
       b.onclick=()=>{ set(c); makeBtns(el,list,get,set); render(); }; el.appendChild(b); });
   }
   makeBtns($("courtBtns"), COURTS, ()=>court, v=>court=v);
-  makeBtns($("filterBtns"), ["הכל",...COURTS], ()=>filter, v=>{filter=v; showAll=false;});
+  makeBtns($("filterBtns"), ["הכל",...COURTS], ()=>filter, v=>{filter=v;});
 
   function setMsg(t, err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
 
@@ -80,9 +79,8 @@
     const shown = sorted.filter(r=>filter==="הכל"||r.court===filter);
     const h=$("history"); h.innerHTML="";
     if(!shown.length) h.innerHTML='<p class="empty">'+(rows.length?"אין הזמנות ב"+filter+".":"ההזמנות של הקבוצה יופיעו כאן, מהחדשה לישנה.")+'</p>';
-    (showAll?shown:shown.slice(0,PAGE)).forEach((r,i)=>h.appendChild(itemEl(r, i===0)));
-    $("moreBtn").hidden = showAll || shown.length<=PAGE;
-    $("moreBtn").textContent = "הצג את כל "+shown.length+" ההזמנות";
+    shown.forEach((r,i)=>h.appendChild(itemEl(r, i===0)));
+    fitHistory();
 
     // per player: last booking — the group's players first, plus anyone else who booked
     const stats={}; sorted.forEach(r=>{ const p=stats[r.name]; if(!p) stats[r.name]={last:r,t:1}; else p.t++; });
@@ -116,7 +114,14 @@
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
   }
 
-  $("moreBtn").onclick=()=>{ showAll=true; render(); };
+  // history box shows 4 rows; the rest scroll inside it
+  function fitHistory(){
+    const h=$("history"), items=h.querySelectorAll(".item");
+    h.style.maxHeight="";
+    $("scrollHint").hidden = items.length<=4;
+    if(items.length>4){ const top=h.getBoundingClientRect().top; h.style.maxHeight=Math.ceil(items[3].getBoundingClientRect().bottom-top+3)+"px"; }
+  }
+  window.addEventListener("resize", fitHistory);
   $("copyBtn").onclick=()=>{
     const ta=$("shareText");
     const done=()=>{ $("copyBtn").textContent="הועתק ✓"; setTimeout(()=>$("copyBtn").textContent="העתק טקסט",2000); };
