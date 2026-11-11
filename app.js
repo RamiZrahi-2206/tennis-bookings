@@ -4,7 +4,7 @@
   const COURTS = ["יבנה","רחובות","ראשון לציון"];
   const OTHER = "אחר"; // any court outside the three; its name is typed in
   const $ = id => document.getElementById(id);
-  let court = COURTS[0], filter = "הכל", rows = [], players = [], sb = null, pendingDel = null, ready = false;
+  let court = COURTS[0], filter = "הכל", rows = [], players = [], offsets = {}, sb = null, pendingDel = null, ready = false;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
   const dmy = iso => { const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y.slice(2); };
@@ -33,10 +33,10 @@
   async function load(){
     const [b,p] = await Promise.all([
       sb.from("bookings").select("id,name,date,court,notes,created_at").order("date",{ascending:false}).limit(2000),
-      sb.from("players").select("name,sort_order").order("sort_order")
+      sb.from("players").select("name,sort_order,count_offset").order("sort_order")
     ]);
     if(b.error){ setMsg("לא הצלחנו לטעון את ההזמנות. בדקו את החיבור ונסו לרענן.", true); return; }
-    rows = b.data || []; players = (p.data||[]).map(x=>x.name);
+    rows = b.data || []; players = (p.data||[]).map(x=>x.name); offsets = {}; (p.data||[]).forEach(x=>{ offsets[x.name] = x.count_offset||0; });
     if(!ready){ ready=true; $("submit").disabled=false; if($("msg").textContent==="מתחבר לרשימה המשותפת…") setMsg(""); }
     render();
   }
@@ -107,20 +107,23 @@
 
     // rotation: a round ends only when every player has the same number of bookings.
     // Whoever has the fewest bookings is still due in the current round.
-    const cnt = n => stats[n] ? stats[n].t : 0;
+    const times = c => c===1 ? "הזמנה אחת" : c+" הזמנות";
+    // a player who joined later starts at the round the group was in (count_offset), so they are not "behind"
+    const real = n => stats[n] ? stats[n].t : 0;
+    const cnt = n => real(n) + (offsets[n]||0);
+    const label = n => times(real(n)) + (offsets[n] ? " · הצטרף בסבב "+(offsets[n]+1) : "");
     const order = players.slice().sort((a,b)=> cnt(a)-cnt(b) || a.localeCompare(b,"he"));
     const minC = order.length ? cnt(order[0]) : 0;
     const due = order.filter(n=>cnt(n)===minC), done = order.filter(n=>cnt(n)>minC);
-    const times = c => c===1 ? "הזמנה אחת" : c+" הזמנות";
     let txt="🎾 מי הזמין אחרון\n";
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
     if(order.length){
       txt+="\n🔄 סבב "+(minC+1)+(done.length? "" : " (סבב חדש)")+"\n";
       txt+="מי מזמין הבא? התור של:\n";
-      due.forEach(n=>{ txt+="• "+n+" ("+times(cnt(n))+")\n"; });
+      due.forEach(n=>{ txt+="• "+n+" ("+label(n)+")\n"; });
       if(done.length){
         txt+="\nכבר הזמינו בסבב הזה:\n";
-        done.forEach(n=>{ txt+="✓ "+n+" ("+times(cnt(n))+")\n"; });
+        done.forEach(n=>{ txt+="✓ "+n+" ("+label(n)+")\n"; });
       }
       txt+="\nסבב חדש מתחיל רק אחרי שכל השחקנים מגיעים לאותה כמות הזמנות.\n";
     }
