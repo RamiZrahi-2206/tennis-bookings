@@ -4,7 +4,7 @@
   const COURTS = ["יבנה","רחובות","ראשון לציון"];
   const OTHER = "אחר"; // any court outside the three; its name is typed in
   const $ = id => document.getElementById(id);
-  let court = COURTS[0], filter = "הכל", rows = [], players = [], offsets = {}, sb = null, pendingDel = null, ready = false;
+  let court = COURTS[0], filter = "הכל", rows = [], players = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
   const dmy = iso => { const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y.slice(2); };
@@ -31,12 +31,13 @@
   function setMsg(t, err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
 
   async function load(){
-    const [b,p] = await Promise.all([
+    const [b,p,r] = await Promise.all([
       sb.from("bookings").select("id,name,date,court,notes,created_at").order("date",{ascending:false}).limit(2000),
-      sb.from("players").select("name,sort_order,count_offset").order("sort_order")
+      sb.from("players").select("name,sort_order").order("sort_order"),
+      sb.from("rounds").select("started_at").order("started_at",{ascending:false}).limit(2)
     ]);
     if(b.error){ setMsg("לא הצלחנו לטעון את ההזמנות. בדקו את החיבור ונסו לרענן.", true); return; }
-    rows = b.data || []; players = (p.data||[]).map(x=>x.name); offsets = {}; (p.data||[]).forEach(x=>{ offsets[x.name] = x.count_offset||0; });
+    rows = b.data || []; players = (p.data||[]).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
     if(!ready){ ready=true; $("submit").disabled=false; if($("msg").textContent==="מתחבר לרשימה המשותפת…") setMsg(""); }
     render();
   }
@@ -105,25 +106,23 @@
       const d=document.createElement("td"); d.className="n"; d.textContent= p ? p.t : 0;
       tr.append(a,b,c,d); tb.appendChild(tr); });
 
-    // rotation by rounds. Rounds a player completed = bookings + join offset (set in the DB when they join).
-    // Players who never booked and never joined are not shown. The current round is one past the
-    // fewest rounds any active player completed; when everyone has paid in it, the next round starts.
-    const done = n => (stats[n] ? stats[n].t : 0) + (offsets[n]||0);
-    const active = players.filter(n=>done(n)>0);
-    const base = active.length ? Math.min(...active.map(done)) : 0;
-    const round = base + 1;
+    // rounds are started explicitly. A booking belongs to the round in which it was recorded.
+    // Who is in the current round: everyone who paid in the previous round, plus anyone who paid in this one.
+    const curStart = roundStarts[0] ?? -Infinity, prevStart = roundStarts[1] ?? -Infinity;
+    const at = r => Date.parse(r.created_at);
+    const inGroup = n => players.includes(n);
+    const paidNow = [...new Set(rows.filter(r=>at(r)>=curStart).map(r=>r.name))].filter(inGroup);
+    const paidPrev = [...new Set(rows.filter(r=>at(r)>=prevStart && at(r)<curStart).map(r=>r.name))].filter(inGroup);
     const byAbc = (a,b)=>a.localeCompare(b,"he");
-    const paid = active.filter(n=>done(n)>base).sort(byAbc);
-    const notYet = active.filter(n=>done(n)===base).sort(byAbc);
+    const paid = paidNow.slice().sort(byAbc);
+    const notYet = paidPrev.filter(n=>!paidNow.includes(n)).sort(byAbc);
+    allPaid = paid.length>0 && notYet.length===0;
     let txt="🎾 מי הזמין אחרון\n";
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
-    if(active.length){
-      txt+="\n🔄 סבב "+round+"\n";
-      if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
-      txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; });
-      txt+="\nמי מזמין הבא?\n";
-    }
-    txt+="\n"+location.origin+location.pathname.replace(/index\.html$/,"");
+    if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
+    if(notYet.length){ txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; }); }
+    txt+="\nמי מזמין הבא?";
+    $("allPaidHint").hidden = !allPaid;
     $("shareText").value=txt.trim();
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
   }
@@ -140,6 +139,21 @@
     const ta=$("shareText");
     const done=()=>{ $("copyBtn").textContent="הועתק ✓"; setTimeout(()=>$("copyBtn").textContent="העתק טקסט",2000); };
     try{ navigator.clipboard.writeText(ta.value).then(done,()=>{ta.select();}); }catch(e){ ta.select(); }
+  };
+
+  // start a new round: everyone who paid in the round that just ended moves to "not yet paid"
+  $("newRoundBtn").onclick=()=>{ $("newRoundConfirm").hidden=false; $("newRoundBtn").hidden=true; $("roundMsg").textContent=""; };
+  $("newRoundCancel").onclick=()=>{ $("newRoundConfirm").hidden=true; $("newRoundBtn").hidden=false; };
+  $("newRoundYes").onclick=async()=>{
+    if(!sb) return;
+    $("newRoundYes").disabled=true;
+    const {error} = await sb.from("rounds").insert({started_at:new Date().toISOString()});
+    $("newRoundYes").disabled=false;
+    $("newRoundConfirm").hidden=true; $("newRoundBtn").hidden=false;
+    if(error){ $("roundMsg").textContent="לא הצלחנו להתחיל סבב חדש. נסו שוב."; return; }
+    await load();
+    $("roundMsg").textContent="סבב חדש התחיל. ההודעה למעלה עודכנה, שלחו אותה לקבוצה.";
+    $("shareText").scrollIntoView({behavior:"smooth", block:"center"});
   };
 
   $("form").addEventListener("submit", async e=>{
@@ -165,6 +179,6 @@
   if(!window.supabase){ setMsg("לא הצלחנו להתחבר. בדקו את החיבור לאינטרנט ורעננו.", true); return; }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   load();
-  sb.channel("bookings-live").on("postgres_changes",{event:"*",schema:"public",table:"bookings"},()=>load()).subscribe();
+  sb.channel("bookings-live").on("postgres_changes",{event:"*",schema:"public",table:"bookings"},()=>load()).on("postgres_changes",{event:"INSERT",schema:"public",table:"rounds"},()=>load()).subscribe();
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 })();

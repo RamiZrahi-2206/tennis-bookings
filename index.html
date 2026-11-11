@@ -89,6 +89,13 @@ td .long{font-size:.75rem;background:var(--soft);color:var(--muted);border-radiu
 .share{display:flex;gap:8px;flex-wrap:wrap}
 .share a,.share button{font:inherit;font-weight:500;padding:10px 14px;border-radius:10px;border:1px solid var(--court);color:var(--court);background:transparent;text-decoration:none;cursor:pointer}
 .share a{background:var(--court);color:var(--court-ink)}
+.round{border-top:1px solid var(--line);padding-top:14px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.round-btn{font:inherit;font-weight:700;padding:10px 14px;border-radius:10px;border:1px dashed var(--court);background:var(--soft);color:var(--court);cursor:pointer}
+.round-confirm{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:10px;background:var(--soft);width:100%}
+.round-confirm p{margin:0;font-size:.9rem}
+.share .round-yes{background:var(--court);color:var(--court-ink)}
+.round-hint{margin:0;font-size:.9rem;font-weight:700;color:var(--court)}
+.round-msg{margin:0;font-size:.9rem;color:var(--muted);min-height:1em}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -139,11 +146,20 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 
   <section aria-labelledby="shareTitle">
     <h2 id="shareTitle">שליחה לקבוצה בוואטסאפ</h2>
-    <p style="margin:0;color:var(--muted);font-size:.9rem">הודעה מוכנה (כולל הקישור לדף): מי הזמין אחרון, מי שילם בסבב הנוכחי ומי טרם שילם. אם הכפתור הירוק לא נפתח, העתיקו את הטקסט והדביקו בקבוצה.</p>
+    <p style="margin:0;color:var(--muted);font-size:.9rem">הודעה מוכנה: מי הזמין אחרון, מי שילם בסבב הנוכחי ומי טרם שילם. אם הכפתור הירוק לא נפתח, העתיקו את הטקסט והדביקו בקבוצה.</p>
     <textarea class="copy" id="shareText" readonly aria-label="טקסט לשליחה"></textarea>
     <div class="share">
       <a id="waLink" href="https://wa.me/" target="_blank" rel="noopener">פתח בוואטסאפ</a>
       <button type="button" id="copyBtn">העתק טקסט</button>
+    </div>
+    <div class="round">
+      <p class="round-hint" id="allPaidHint" hidden>כולם שילמו בסבב הזה. אפשר להתחיל סבב חדש.</p>
+      <button type="button" class="round-btn" id="newRoundBtn">🔄 התחל סבב חדש</button>
+      <div id="newRoundConfirm" hidden class="round-confirm">
+        <p>כל מי ששילם בסבב האחרון יחזור ל"טרם שילמו בסבב". להתחיל סבב חדש?</p>
+        <div class="share"><button type="button" class="round-yes" id="newRoundYes">כן, התחל סבב חדש</button><button type="button" id="newRoundCancel">ביטול</button></div>
+      </div>
+      <p class="round-msg" id="roundMsg" role="status"></p>
     </div>
   </section>
 </div>
