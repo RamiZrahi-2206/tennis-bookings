@@ -78,17 +78,6 @@
       const a=document.createElement("span"); a.className="ago"; a.textContent="רשמו את ההזמנה הראשונה בטופס למטה"; meta.appendChild(a);
     }
 
-    const cl=$("courtsLast"); cl.innerHTML="";
-    COURTS.forEach(c=>{
-      const r=sorted.find(x=>x.court===c);
-      const box=document.createElement("div"); box.className="cl"+(r?"":" none");
-      const t=document.createElement("span"); t.className="c"; t.textContent="אחרון ב"+c;
-      const n=document.createElement("span"); n.className="n"; n.textContent=r?r.name:"אין הזמנות";
-      box.append(t,n);
-      if(r){ const d=document.createElement("span"); d.className="d"; d.textContent=dmy(r.date)+" · "+agoText(r.date); box.appendChild(d); }
-      cl.appendChild(box);
-    });
-
     const shown = sorted.filter(r=>filter==="הכל"||r.court===filter);
     const h=$("history"); h.innerHTML="";
     if(!shown.length) h.innerHTML='<p class="empty">'+(rows.length?"אין הזמנות ב"+filter+".":"ההזמנות של הקבוצה יופיעו כאן, מהחדשה לישנה.")+'</p>';
