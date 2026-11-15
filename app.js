@@ -4,7 +4,7 @@
   const COURTS = ["יבנה","רחובות","ראשון לציון","מזכרת בתיה"];
   const OTHER = "אחר"; // any court outside the three; its name is typed in
   const $ = id => document.getElementById(id);
-  let court = COURTS[0], filter = "הכל", rows = [], players = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false;
+  let court = COURTS[0], filter = "הכל", rows = [], players = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
   const dmy = iso => { const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y.slice(2); };
@@ -37,7 +37,7 @@
       sb.from("rounds").select("started_at").order("started_at",{ascending:false}).limit(2)
     ]);
     if(b.error){ setMsg("לא הצלחנו לטעון את ההזמנות. בדקו את החיבור ונסו לרענן.", true); return; }
-    rows = b.data || []; players = (p.data||[]).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
+    rows = b.data || []; players = (p.data||[]).map(x=>x.name); rotation = (p.data||[]).filter(x=>x.sort_order>0).sort((a,b)=>a.sort_order-b.sort_order).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
     if(!ready){ ready=true; $("submit").disabled=false; if($("msg").textContent==="מתחבר לרשימה המשותפת…") setMsg(""); }
     render();
   }
@@ -108,26 +108,43 @@
       const d=document.createElement("td"); d.className="n"; d.textContent= p ? p.t : 0;
       tr.append(a,b,c,d); tb.appendChild(tr); });
 
-    // rounds are started explicitly. A booking belongs to the round in which it was recorded.
-    // Who is in the current round: everyone who paid in the previous round, plus anyone who paid in this one.
-    const curStart = roundStarts[0] ?? -Infinity, prevStart = roundStarts[1] ?? -Infinity;
-    const at = r => Date.parse(r.created_at);
-    const inGroup = n => players.includes(n);
-    const paidNow = [...new Set(rows.filter(r=>at(r)>=curStart).map(r=>r.name))].filter(inGroup);
-    const paidPrev = [...new Set(rows.filter(r=>at(r)>=prevStart && at(r)<curStart).map(r=>r.name))].filter(inGroup);
-    const byAbc = (a,b)=>a.localeCompare(b,"he");
-    const paid = paidNow.slice().sort(byAbc);
-    const notYet = paidPrev.filter(n=>!paidNow.includes(n)).sort(byAbc);
-    allPaid = paid.length>0 && notYet.length===0;
+    // Rounds are started explicitly ("סבב חדש"). A booking belongs to the round in which it was recorded.
+    // Every player in the rotation (fixed order, joiners appended at the end) is in every round.
+    // The next to book is the first player in rotation order who has not paid in this round.
+    const curStart = roundStarts[0] ?? -Infinity;
+    const paidNow = new Set(rows.filter(r=>Date.parse(r.created_at)>=curStart).map(r=>r.name));
+    const paid = rotation.filter(n=>paidNow.has(n));
+    const notYet = rotation.filter(n=>!paidNow.has(n));
+    const next = notYet[0] || null;
+    allPaid = rotation.length>0 && !next;
+    renderRound(paid, next);
+    $("allPaidHint").hidden = !allPaid;
     let txt="🎾 מי הזמין אחרון\n";
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
     if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
     if(notYet.length){ txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; }); }
-    txt+="\nמי מזמין הבא?";
+    txt+= next ? "\nמי מזמין הבא? 👉 "+next : "\n🎉 כולם שילמו בסבב! פותחים סבב חדש.";
     txt+="\n\nלהזמנת מגרש באפליקציית לזוז:\nhttps://lazuz.co.il/app/";
-    $("allPaidHint").hidden = !allPaid;
     $("shareText").value=txt.trim();
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
+  }
+
+  // current round: rotation order with each player's status, and who books next
+  function renderRound(paid, next){
+    const box=$("nextUp"), list=$("rotation");
+    list.innerHTML="";
+    if(!rotation.length){ box.textContent= ready ? "עדיין אין שחקנים בסבב." : "טוען…"; return; }
+    box.innerHTML="";
+    if(next){ const l=document.createElement("span"); l.className="next-label"; l.textContent="הבא בתור להזמין"; const n=document.createElement("strong"); n.className="next-name"; n.textContent=next; box.append(l,n); box.classList.remove("done"); }
+    else { box.textContent="🎉 כולם שילמו בסבב. לחצו על \"סבב חדש\" כדי להתחיל מחדש."; box.classList.add("done"); }
+    rotation.forEach(n=>{
+      const li=document.createElement("li"); const nm=document.createElement("span"); nm.textContent=n;
+      const st=document.createElement("span"); st.className="st";
+      if(paid.includes(n)){ st.textContent="שילם ✓"; li.className="paid"; }
+      else if(n===next){ st.textContent="הבא בתור"; li.className="next"; }
+      else { st.textContent="ממתין"; }
+      li.append(nm,st); list.appendChild(li);
+    });
   }
 
   // history box shows 4 rows; the rest scroll inside it
@@ -155,7 +172,7 @@
     $("newRoundConfirm").hidden=true; $("newRoundBtn").hidden=false;
     if(error){ $("roundMsg").textContent="לא הצלחנו להתחיל סבב חדש. נסו שוב."; return; }
     await load();
-    $("roundMsg").textContent="סבב חדש התחיל. ההודעה למעלה עודכנה, שלחו אותה לקבוצה.";
+    $("roundMsg").textContent="סבב חדש התחיל. ההודעה לוואטסאפ עודכנה, שלחו אותה לקבוצה.";
     $("shareText").scrollIntoView({behavior:"smooth", block:"center"});
   };
 
