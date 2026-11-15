@@ -123,7 +123,7 @@
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
     if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
     if(notYet.length){ txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; }); }
-    txt+= next ? "\nמי מזמין הבא? 👉 "+next : "\n🎉 כולם שילמו בסבב! פותחים סבב חדש.";
+    txt+= next ? "\nמי מזמין הבא?\n👉 "+next : "\n🎉 כולם שילמו בסבב! פותחים סבב חדש.";
     txt+="\n\nלהזמנת מגרש באפליקציית לזוז:\nhttps://lazuz.co.il/app/";
     $("shareText").value=txt.trim();
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
