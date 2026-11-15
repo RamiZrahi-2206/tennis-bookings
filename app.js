@@ -1,4 +1,18 @@
 (function(){
+  // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
+  // version differs from this code's version, reload once with a fresh URL.
+  const APP_VERSION = "20261115c";
+  async function checkVersion(){
+    try{
+      const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
+      if(v && v!==APP_VERSION && sessionStorage.getItem("reloadedFor")!==v){
+        sessionStorage.setItem("reloadedFor", v);
+        location.replace(location.pathname+"?u="+encodeURIComponent(v));
+      }
+    }catch(e){}
+  }
+  checkVersion();
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) checkVersion(); });
   const SUPABASE_URL = "https://xcjbwctlnjybabrfkvcn.supabase.co";
   const SUPABASE_KEY = "sb_publishable_XqMv4nZHVi_xN28fWNX_UQ_QJC8JueZ"; // public publishable key, protected by RLS
   const COURTS = ["יבנה","רחובות","ראשון לציון","מזכרת בתיה"];
