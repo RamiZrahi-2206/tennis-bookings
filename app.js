@@ -1,7 +1,7 @@
 (function(){
   const SUPABASE_URL = "https://xcjbwctlnjybabrfkvcn.supabase.co";
   const SUPABASE_KEY = "sb_publishable_XqMv4nZHVi_xN28fWNX_UQ_QJC8JueZ"; // public publishable key, protected by RLS
-  const COURTS = ["יבנה","רחובות","ראשון לציון"];
+  const COURTS = ["יבנה","רחובות","ראשון לציון","מזכרת בתיה"];
   const OTHER = "אחר"; // any court outside the three; its name is typed in
   const $ = id => document.getElementById(id);
   let court = COURTS[0], filter = "הכל", rows = [], players = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false;

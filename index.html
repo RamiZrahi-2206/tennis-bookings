@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta property="og:image" content="https://ramizrahi-2206.github.io/tennis-bookings/icons/icon-512.png">
 <meta property="og:title" content="הזמנות מגרשי טניס">
-<meta property="og:description" content="מי הזמין אחרון את המגרש – יבנה, רחובות, ראשון לציון">
+<meta property="og:description" content="מי הזמין אחרון את המגרש – יבנה, רחובות, ראשון לציון, מזכרת בתיה">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
 <title>הזמנות מגרשי טניס</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -57,7 +57,7 @@ input[type=text],input[type=date],select{width:100%;font:inherit;padding:10px 12
 input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:440px){.row{grid-template-columns:1fr}}
-.courts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.courts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 @media (max-width:440px){.courts{grid-template-columns:repeat(2,1fr)}}
 .courts button,.chips button{font:inherit;padding:10px 6px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;font-weight:500}
 .courts button[aria-pressed=true],.chips button[aria-pressed=true]{background:var(--court);color:var(--court-ink);border-color:var(--court)}
@@ -114,7 +114,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 <body>
 <div class="wrap">
   <header aria-live="polite">
-    <h1>הזמנות מגרשי טניס · יבנה · רחובות · ראשון לציון</h1>
+    <h1>הזמנות מגרשי טניס · יבנה · רחובות · ראשון לציון · מזכרת בתיה</h1>
     <p class="eyebrow">הזמין אחרון</p>
     <p class="last-name" id="lastName">טוען…</p>
     <div class="last-meta" id="lastMeta"><span class="ago">ההזמנה האחרונה תופיע כאן</span></div>
