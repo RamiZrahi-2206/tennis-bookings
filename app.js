@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261115c";
+  const APP_VERSION = "20261117a";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -18,7 +18,7 @@
   const COURTS = ["יבנה","רחובות","ראשון לציון","מזכרת בתיה"];
   const OTHER = "אחר"; // any court outside the three; its name is typed in
   const $ = id => document.getElementById(id);
-  let court = COURTS[0], filter = "הכל", rows = [], players = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false;
+  let court = COURTS[0], filter = "הכל", rows = [], players = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false, editingId = null, draft = null;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
   const dmy = iso => { const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y.slice(2); };
@@ -28,6 +28,7 @@
   const agoText = iso => { const n=daysFrom(iso);
     if(n===0) return "היום"; if(n===1) return "אתמול"; if(n===-1) return "מחר";
     if(n<0) return "בעוד "+(-n)+" ימים"; return "לפני "+n+" ימים"; };
+  const isActive = r => r.status!=="cancelled";
   const byNewest = (a,b)=> b.date.localeCompare(a.date) || String(b.created_at||"").localeCompare(String(a.created_at||""));
 
   $("date").value = todayISO();
@@ -46,7 +47,7 @@
 
   async function load(){
     const [b,p,r] = await Promise.all([
-      sb.from("bookings").select("id,name,date,court,notes,created_at").order("date",{ascending:false}).limit(2000),
+      sb.from("bookings").select("id,name,date,court,notes,created_at,status").order("date",{ascending:false}).limit(2000),
       sb.from("players").select("name,sort_order").order("sort_order"),
       sb.from("rounds").select("started_at").order("started_at",{ascending:false}).limit(2)
     ]);
@@ -57,12 +58,18 @@
   }
 
   function itemEl(r, isFirst){
-    const div=document.createElement("div"); div.className="item"+(isFirst?" first":"");
+    const cancelled = !isActive(r);
+    const div=document.createElement("div"); div.className="item"+(isFirst&&!cancelled?" first":"")+(cancelled?" cancelled":"");
     const dt=document.createElement("span"); dt.className="date"; dt.textContent=dmy(r.date);
     const who=document.createElement("span"); who.className="who"; who.textContent=r.name;
-    if(r.date>todayISO()){ const f=document.createElement("span"); f.className="tag future"; f.textContent="עתידי"; who.appendChild(f); }
+    if(cancelled){ const c=document.createElement("span"); c.className="tag cancel"; c.textContent="בוטל – ממתין לתאריך חדש"; who.appendChild(c); }
+    else if(r.date>todayISO()){ const f=document.createElement("span"); f.className="tag future"; f.textContent="עתידי"; who.appendChild(f); }
     if(r.notes){ const n=document.createElement("span"); n.className="note"; n.textContent=r.notes; who.appendChild(n); }
     const tag=document.createElement("span"); tag.className="tag"; tag.textContent=r.court;
+    const acts=document.createElement("span"); acts.className="acts";
+    const ed=document.createElement("button"); ed.type="button"; ed.className="del"; ed.textContent="ערוך";
+    ed.setAttribute("aria-label","עריכת ההזמנה של "+r.name);
+    ed.onclick=()=>{ editingId=r.id; draft={date:r.date, court:r.court, notes:r.notes||"", cancelled:cancelled}; pendingDel=null; render(); setTimeout(()=>{ const e=$("edDate"); if(e) e.focus(); },0); };
     const del=document.createElement("button"); del.type="button"; del.className="del";
     const armed = pendingDel===r.id;
     del.textContent = armed ? "בטוח? מחק" : "מחק"; if(armed) del.classList.add("confirm");
@@ -73,13 +80,55 @@
       const {error} = await sb.from("bookings").delete().eq("id", r.id);
       if(error) setMsg("לא הצלחנו למחוק. נסו שוב.", true); else { setMsg("ההזמנה נמחקה"); await load(); }
     };
-    div.append(dt, who, tag, del);
+    acts.append(ed, del);
+    div.append(dt, who, tag, acts);
+    if(editingId===r.id) div.appendChild(editEl(r));
     return div;
+  }
+
+  // inline edit: change date / court / notes, or mark the booking cancelled until a new date is set
+  function editEl(r){
+    const f=document.createElement("div"); f.className="edit";
+    const known = COURTS.includes(draft.court);
+    f.innerHTML='<div class="row"><div><label for="edDate">תאריך</label><input type="date" id="edDate"></div>'
+      +'<div><label for="edCourt">מגרש</label><select id="edCourt"></select></div></div>'
+      +'<div id="edOtherWrap"><label for="edOther">שם המגרש</label><input type="text" id="edOther" maxlength="40"></div>'
+      +'<div><label for="edNotes">מתחם / הערות</label><input type="text" id="edNotes" maxlength="80"></div>'
+      +'<label class="check"><input type="checkbox" id="edCancel"> ההזמנה בוטלה, צריך לתאם תאריך חדש (הסבב ממתין)</label>'
+      +'<div class="share"><button type="button" class="round-yes" id="edSave">שמור</button><button type="button" id="edClose">ביטול</button></div>';
+    const sel=f.querySelector("#edCourt");
+    [...COURTS, OTHER].forEach(c=>{ const o=document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o); });
+    sel.value = known ? draft.court : OTHER;
+    f.querySelector("#edDate").value=draft.date;
+    f.querySelector("#edOther").value = known ? "" : draft.court;
+    f.querySelector("#edOtherWrap").hidden = known;
+    f.querySelector("#edNotes").value=draft.notes;
+    f.querySelector("#edCancel").checked=draft.cancelled;
+    f.querySelector("#edDate").oninput=e=>{ draft.date=e.target.value; };
+    sel.onchange=e=>{ const o=e.target.value===OTHER; f.querySelector("#edOtherWrap").hidden=!o; draft.court = o ? f.querySelector("#edOther").value.trim() : e.target.value; };
+    f.querySelector("#edOther").oninput=e=>{ draft.court=e.target.value.trim(); };
+    f.querySelector("#edNotes").oninput=e=>{ draft.notes=e.target.value; };
+    f.querySelector("#edCancel").onchange=e=>{ draft.cancelled=e.target.checked; };
+    f.querySelector("#edClose").onclick=()=>{ editingId=null; draft=null; render(); };
+    f.querySelector("#edSave").onclick=async()=>{
+      if(!draft.date){ setMsg("בחרו תאריך", true); return; }
+      if(!draft.court){ setMsg("כתבו את שם המגרש", true); return; }
+      const btn=f.querySelector("#edSave"); btn.disabled=true;
+      const {error} = await sb.from("bookings").update({date:draft.date, court:draft.court, notes:draft.notes.trim(), status: draft.cancelled?"cancelled":"active"}).eq("id", r.id);
+      btn.disabled=false;
+      if(error){ setMsg("השינוי לא נשמר. נסו שוב.", true); return; }
+      const was=draft.cancelled; editingId=null; draft=null;
+      setMsg(was ? "ההזמנה של "+r.name+" סומנה כבוטלה. הסבב ממתין לתאריך חדש." : "ההזמנה של "+r.name+" עודכנה.");
+      await load();
+    };
+    f.addEventListener("click", e=>e.stopPropagation());
+    return f;
   }
 
   function render(){
     const sorted = rows.slice().sort(byNewest);
-    const last = sorted[0];
+    const active = sorted.filter(isActive);
+    const last = active[0];
 
     const meta=$("lastMeta"); meta.innerHTML="";
     if(last){
@@ -100,7 +149,7 @@
     fitHistory();
 
     // per player: last booking — the group's players first, plus anyone else who booked
-    const stats={}; sorted.forEach(r=>{ const p=stats[r.name]; if(!p) stats[r.name]={last:r,t:1}; else p.t++; });
+    const stats={}; active.forEach(r=>{ const p=stats[r.name]; if(!p) stats[r.name]={last:r,t:1}; else p.t++; });
     const names=[...players, ...Object.keys(stats).filter(n=>!players.includes(n))];
     // "who booked" dropdown: the group's players, alphabetical
     const sel=$("name"); let keep=sel.value;
@@ -126,36 +175,40 @@
     // Every player in the rotation (fixed order, joiners appended at the end) is in every round.
     // The next to book is the first player in rotation order who has not paid in this round.
     const curStart = roundStarts[0] ?? -Infinity;
-    const paidNow = new Set(rows.filter(r=>Date.parse(r.created_at)>=curStart).map(r=>r.name));
+    const inRound = rows.filter(r=>Date.parse(r.created_at)>=curStart);
+    const paidNow = new Set(inRound.filter(isActive).map(r=>r.name));
+    // a player whose booking was cancelled is not paid: the round waits on them until a new date is set
+    const waitingNewDate = new Set(inRound.filter(r=>!isActive(r)).map(r=>r.name).filter(n=>!paidNow.has(n)));
     const paid = rotation.filter(n=>paidNow.has(n));
     const notYet = rotation.filter(n=>!paidNow.has(n));
     const next = notYet[0] || null;
     allPaid = rotation.length>0 && !next;
-    renderRound(paid, next);
+    renderRound(paid, next, waitingNewDate);
     $("allPaidHint").hidden = !allPaid;
     let txt="🎾 מי הזמין אחרון\n";
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
     if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
     if(notYet.length){ txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; }); }
-    txt+= next ? "\nמי מזמין הבא?\n👉 "+next : "\n🎉 כולם שילמו בסבב! פותחים סבב חדש.";
+    txt+= next ? "\nמי מזמין הבא?\n👉 "+next+(waitingNewDate.has(next)?" (ההזמנה בוטלה – מתאמים תאריך חדש)":"") : "\n🎉 כולם שילמו בסבב! פותחים סבב חדש.";
     txt+="\n\nלהזמנת מגרש באפליקציית לזוז:\nhttps://lazuz.co.il/app/";
     $("shareText").value=txt.trim();
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
   }
 
   // current round: rotation order with each player's status, and who books next
-  function renderRound(paid, next){
+  function renderRound(paid, next, waiting){
     const box=$("nextUp"), list=$("rotation");
     list.innerHTML="";
     if(!rotation.length){ box.textContent= ready ? "עדיין אין שחקנים בסבב." : "טוען…"; return; }
     box.innerHTML="";
-    if(next){ const l=document.createElement("span"); l.className="next-label"; l.textContent="הבא בתור להזמין"; const n=document.createElement("strong"); n.className="next-name"; n.textContent=next; box.append(l,n); box.classList.remove("done"); }
+    if(next){ const l=document.createElement("span"); l.className="next-label"; l.textContent="הבא בתור להזמין"; const n=document.createElement("strong"); n.className="next-name"; n.textContent=next; box.append(l,n);
+      if(waiting.has(next)){ const w=document.createElement("span"); w.className="next-label"; w.textContent="ההזמנה בוטלה – מתאמים תאריך חדש"; box.appendChild(w); } box.classList.remove("done"); }
     else { box.textContent="🎉 כולם שילמו בסבב. לחצו על \"סבב חדש\" כדי להתחיל מחדש."; box.classList.add("done"); }
     rotation.forEach(n=>{
       const li=document.createElement("li"); const nm=document.createElement("span"); nm.textContent=n;
       const st=document.createElement("span"); st.className="st";
       if(paid.includes(n)){ st.textContent="שילם ✓"; li.className="paid"; }
-      else if(n===next){ st.textContent="הבא בתור"; li.className="next"; }
+      else if(n===next){ st.textContent= waiting.has(n) ? "ממתין לתאריך חדש" : "הבא בתור"; li.className="next"; }
       else { st.textContent="ממתין"; }
       li.append(nm,st); list.appendChild(li);
     });
