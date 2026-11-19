@@ -63,6 +63,7 @@ header > *{position:relative}
 .pill{background:var(--ball);color:var(--ball-ink);border-radius:999px;padding:2px 12px;font-weight:700;font-size:.85rem}
 .ago{opacity:.9}
 h1{font-size:.8rem;font-weight:500;margin:0 0 12px;opacity:.85;letter-spacing:.04em}
+@media (max-width:720px){header h1{padding-inline-start:46px}}
 .courts-last{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 @media (max-width:480px){.courts-last{grid-template-columns:1fr}}
 .cl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;min-width:0}
@@ -147,10 +148,10 @@ td .sub::before{content:" · "}
 .rotation li.paid .st{border-color:var(--court);color:var(--court)}
 .rotation li.next{outline:2px solid var(--court)}
 .rotation li.next .st{background:var(--court);color:var(--court-ink);border-color:var(--court)}
-.gear{position:fixed;z-index:30;top:calc(env(safe-area-inset-top,0px) + 12px);left:max(12px,env(safe-area-inset-left,0px));width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--court);display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.gear{position:fixed;z-index:30;top:calc(env(safe-area-inset-top,0px) + 12px);right:max(12px,env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--court);display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)}
 .gear svg{width:22px;height:22px}
 .scrim{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.35)}
-.settings{position:fixed;z-index:50;top:0;bottom:0;left:0;width:min(340px,88vw);background:var(--surface);color:var(--fg);box-shadow:4px 0 24px rgba(0,0,0,.2);padding:calc(env(safe-area-inset-top,0px) + 18px) 18px calc(env(safe-area-inset-bottom,0px) + 18px) max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+.settings{position:fixed;z-index:50;top:0;bottom:0;right:0;width:min(340px,88vw);background:var(--surface);color:var(--fg);box-shadow:-4px 0 24px rgba(0,0,0,.2);padding:calc(env(safe-area-inset-top,0px) + 18px) max(18px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 18px) 18px;display:flex;flex-direction:column;gap:18px;overflow-y:auto}
 .settings-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .settings-head h2{font-size:1.4rem}
 .x{font:inherit;font-size:1.2rem;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
@@ -200,7 +201,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 
 </head>
 <body>
-<button type="button" class="gear" id="settingsBtn" aria-label="הגדרות" aria-expanded="false" aria-controls="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+<button type="button" class="gear" id="settingsBtn" aria-label="תפריט והגדרות" aria-expanded="false" aria-controls="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
 <div class="scrim" id="scrim" hidden></div>
 <aside class="settings" id="settings" hidden aria-labelledby="setTitle">
   <div class="settings-head"><h2 id="setTitle">הגדרות</h2><button type="button" class="x" id="settingsClose" aria-label="סגירת ההגדרות">✕</button></div>
@@ -273,7 +274,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <div class="round">
       <p class="round-hint" id="allPaidHint" hidden>כולם שילמו בסבב הזה. מנהל הקבוצה יכול לפתוח סבב חדש.</p>
       <button type="button" class="round-btn" id="newRoundBtn">🔄 סבב חדש</button>
-      <p class="round-msg" id="roundAdminNote">רק מנהל הקבוצה יכול לפתוח סבב חדש (⚙️ ← ניהול הקבוצה).</p>
+      <p class="round-msg" id="roundAdminNote">רק מנהל הקבוצה יכול לפתוח סבב חדש (☰ ← ניהול הקבוצה).</p>
       <div id="newRoundConfirm" hidden class="round-confirm">
         <p>כל השחקנים יחזרו ל"טרם שילמו", והתור יתחיל מחדש מהראשון ברשימה. להתחיל סבב חדש?</p>
         <div class="share"><button type="button" class="round-yes" id="newRoundYes">כן, התחל סבב חדש</button><button type="button" id="newRoundCancel">ביטול</button></div>
@@ -329,6 +330,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119e"></script>
+<script src="app.js?v=20261119f"></script>
 </body>
 </html>
