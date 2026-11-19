@@ -240,8 +240,9 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <div class="next-up" id="nextUp" role="status">טוען…</div>
     <ol class="rotation" id="rotation" aria-label="סדר ההזמנות בסבב"></ol>
     <div class="round">
-      <p class="round-hint" id="allPaidHint" hidden>כולם שילמו בסבב הזה. אפשר להתחיל סבב חדש.</p>
+      <p class="round-hint" id="allPaidHint" hidden>כולם שילמו בסבב הזה. מנהל הקבוצה יכול לפתוח סבב חדש.</p>
       <button type="button" class="round-btn" id="newRoundBtn">🔄 סבב חדש</button>
+      <p class="round-msg" id="roundAdminNote">רק מנהל הקבוצה יכול לפתוח סבב חדש (⚙️ ← ניהול הקבוצה).</p>
       <div id="newRoundConfirm" hidden class="round-confirm">
         <p>כל השחקנים יחזרו ל"טרם שילמו", והתור יתחיל מחדש מהראשון ברשימה. להתחיל סבב חדש?</p>
         <div class="share"><button type="button" class="round-yes" id="newRoundYes">כן, התחל סבב חדש</button><button type="button" id="newRoundCancel">ביטול</button></div>
@@ -297,6 +298,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119c"></script>
+<script src="app.js?v=20261119d"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261119c";
+  const APP_VERSION = "20261119d";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -286,10 +286,12 @@
   $("newRoundYes").onclick=async()=>{
     if(!sb) return;
     $("newRoundYes").disabled=true;
-    const {error} = await sb.from("rounds").insert({started_at:new Date().toISOString(), sport: sport.id});
+    if(!auth){ $("newRoundYes").disabled=false; $("newRoundConfirm").hidden=true; updateRoundControls(); return; }
+    const r = await rpc("group_start_round",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin});
     $("newRoundYes").disabled=false;
-    $("newRoundConfirm").hidden=true; $("newRoundBtn").hidden=false;
-    if(error){ $("roundMsg").textContent="לא הצלחנו להתחיל סבב חדש. נסו שוב."; return; }
+    $("newRoundConfirm").hidden=true; updateRoundControls();
+    if(!r.ok){ if(r.error==="wrong_pin"||r.error==="locked"||r.error==="not_admin"){ saveAuth(null); renderAdmin(); }
+      $("roundMsg").textContent=errText(r.error)+(r.error==="network"?"":" רק מנהל יכול לפתוח סבב חדש."); return; }
     await load();
     $("roundMsg").textContent="סבב חדש התחיל. ההודעה לוואטסאפ עודכנה, שלחו אותה לקבוצה.";
     $("shareText").scrollIntoView({behavior:"smooth", block:"center"});
@@ -333,7 +335,13 @@
   const pmsg = (t,err)=>{ const m=$("pmMsg"); m.textContent=t||""; m.className="msg"+(err?" err":""); };
   async function rpc(fn, args){ const {data,error} = await sb.rpc(fn, args); if(error) return {ok:false,error:"network"}; return data; }
 
+  function updateRoundControls(){
+    const isAdmin = !!auth && auth.role!=="member";
+    $("newRoundBtn").hidden = !isAdmin || !$("newRoundConfirm").hidden;
+    $("roundAdminNote").hidden = isAdmin;
+  }
   function renderAdmin(){
+    updateRoundControls();
     // my role, next to "my name"
     const mr=$("myRole"); if(me && players.includes(me)){ mr.hidden=false; mr.innerHTML="התפקיד שלי בקבוצה: "+roleTag(roleOf(me)); } else mr.hidden=true;
     if(auth && (auth.name!==me && me) ) { /* signed in as someone else on this device: keep, but show who */ }
