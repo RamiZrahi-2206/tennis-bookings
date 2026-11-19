@@ -74,7 +74,7 @@ h1{font-size:.8rem;font-weight:500;margin:0 0 12px;opacity:.85;letter-spacing:.0
 section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px;min-width:0}
 h2{font-family:var(--font-display);font-weight:400;font-size:1.25rem;margin:0}
 label{font-size:.85rem;color:var(--muted);font-weight:500;display:block;margin-bottom:4px}
-input[type=text],input[type=date],select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
+input[type=text],input[type=date],input[type=email],input[type=password],select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg)}
 input:focus-visible,button:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--ball);outline-offset:2px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:440px){.row{grid-template-columns:1fr}}
@@ -213,75 +213,176 @@ td .sub::before{content:" · "}
   .wrap{max-width:1080px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
   .col{display:flex;flex-direction:column;gap:20px;min-width:0}
 }
+.screen{position:fixed;inset:0;z-index:70;background:var(--bg);overflow-y:auto;display:flex;justify-content:center;align-items:flex-start;padding:calc(env(safe-area-inset-top,0px) + 32px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(16px,env(safe-area-inset-left,0px))}
+.reg-card.wide{max-width:560px}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:12px;background:var(--soft)}
+.seg button{font:inherit;font-weight:500;padding:9px;border:0;border-radius:9px;background:none;color:var(--muted);cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.linkish{font:inherit;font-size:.88rem;background:none;border:0;padding:4px 0;color:var(--court);text-decoration:underline;text-underline-offset:3px;cursor:pointer;align-self:flex-start}
+.btn.big{padding:14px;font-size:1.05rem;font-weight:700}
+.group-cards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.group-cards li{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:14px;border-radius:14px;background:var(--soft);border:1px solid var(--line)}
+.group-cards .gc-emoji{font-size:1.6rem;width:44px;height:44px;border-radius:12px;display:grid;place-items:center}
+.group-cards .gc-name{font-weight:700;font-size:1.05rem}
+.group-cards .gc-meta{font-size:.82rem;color:var(--muted)}
+.group-cards li.current{outline:2px solid var(--court)}
+.menu{display:flex;flex-direction:column;gap:4px}
+.menu button{font:inherit;text-align:start;padding:12px;border:0;border-radius:10px;background:none;color:var(--fg);cursor:pointer;font-weight:500}
+.menu button:hover,.menu button:focus-visible{background:var(--soft)}
+.menu .danger-link{color:var(--danger)}
+.group-now{margin:0;font-weight:700}
+.role-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.92rem}
+.role-list li{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;background:var(--soft)}
+.legacy{padding:12px;border-radius:12px;border:2px dashed var(--court);display:flex;flex-direction:column;gap:8px}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
 </head>
 <body>
-<button type="button" class="gear" id="settingsBtn" aria-label="תפריט והגדרות" aria-expanded="false" aria-controls="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+<button type="button" class="gear" id="settingsBtn" aria-label="תפריט" aria-expanded="false" aria-controls="settings" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
 <div class="scrim" id="scrim" hidden></div>
 <aside class="settings" id="settings" hidden aria-labelledby="setTitle">
-  <div class="settings-head"><h2 id="setTitle">הגדרות</h2><button type="button" class="x" id="settingsClose" aria-label="סגירת ההגדרות">✕</button></div>
+  <div class="settings-head"><h2 id="setTitle">תפריט</h2><button type="button" class="x" id="settingsClose" aria-label="סגירת התפריט">✕</button></div>
   <div class="set-block">
-    <h3>פרטי המשתמש</h3>
-    <span class="set-label">השם שלי</span>
+    <span class="set-label">מחוברים כ</span>
     <p class="me-name" id="meName">…</p>
-    <p class="set-note">השם נקבע בהרשמה. הוא נבחר אוטומטית ב"מי הזמין" ומסומן "(אני)" ברשימת הסבב.</p>
-    <p class="set-note" id="myRole" hidden></p>
-    <button type="button" class="btn" id="regOut" hidden>התנתקות מהמכשיר</button>
-    <div id="regOutConfirm" hidden class="admin-row"><p class="set-note">להתנתק? כדי להמשיך תצטרכו להירשם שוב, במכשיר הזה או באחר.</p>
-      <div class="share"><button type="button" class="btn danger" id="regOutYes">כן, התנתק</button><button type="button" class="btn" id="regOutNo">ביטול</button></div></div>
+    <p class="set-note" id="meEmail"></p>
   </div>
-  <div class="set-block">
-    <h3>ענף ספורט</h3>
-    <button type="button" class="btn back-btn" id="sportBack" hidden></button>
-    <div class="sports" id="sportBtns" role="group" aria-label="בחירת ענף ספורט"></div>
-    <p class="set-note">לכל ענף יש הזמנות, סבב וסדר תורות משלו. רשימת השחקנים משותפת.</p>
-    <label for="sportLink">קישור לקבוצת הוואטסאפ של הענף</label>
-    <div class="join-row"><input type="text" id="sportLink" readonly><button type="button" id="copyLink">העתק</button></div>
-    <p class="set-note">מי שנכנס מהקישור הזה רואה ישר את הענף הזה.</p>
+  <div class="set-block" id="groupBlock">
+    <span class="set-label">הקבוצה הנוכחית</span>
+    <p class="group-now" id="groupNow"></p>
   </div>
-  <div class="set-block" id="adminBlock">
-    <h3>ניהול הקבוצה</h3>
-    <div id="adminBody"></div>
-    <p class="msg" id="adminMsg" role="status"></p>
-  </div>
+  <nav class="menu" aria-label="תפריט ראשי">
+    <button type="button" data-menu="profile">👤 הפרופיל שלי</button>
+    <button type="button" data-menu="groups">👥 הקבוצות שלי</button>
+    <button type="button" data-menu="create">➕ יצירת קבוצה חדשה</button>
+    <button type="button" data-menu="switch">🔁 החלפת קבוצה</button>
+    <button type="button" data-menu="manage" id="menuManage" hidden>🛡️ ניהול הקבוצה</button>
+    <button type="button" data-menu="security">🔒 אבטחה ושינוי סיסמה</button>
+    <button type="button" data-menu="signout" class="danger-link">⎋ התנתקות</button>
+  </nav>
 </aside>
-<div class="reg" id="regScreen" hidden role="dialog" aria-modal="true" aria-labelledby="regTitle">
+
+<!-- full-screen screens: sign in / groups / create / join / profile / security / new password -->
+<div class="screen" id="authScreen" hidden>
   <div class="reg-card">
-    <button type="button" class="btn back-btn" id="regBack" hidden></button>
     <img src="icons/icon-192.png" alt="" width="64" height="64" class="reg-logo">
-    <h2 id="regTitle">ברוכים הבאים</h2>
-    <div id="regJoin" class="admin-row">
-      <p class="set-note">הרשמה חד-פעמית: כתבו את השם המלא שלכם כפי שמנהל הקבוצה רשם אותו. מהרגע הזה המכשיר יזכור אתכם.</p>
-      <label for="regName">השם המלא שלכם</label>
-      <input type="text" id="regName" maxlength="40" autocomplete="name" placeholder="למשל: שי יוסקו">
-      <button type="button" class="btn solid" id="regGo">הרשמה</button>
+    <h2 id="authTitle">כניסה</h2>
+    <div class="seg" role="tablist" aria-label="כניסה או הרשמה">
+      <button type="button" role="tab" id="authTabIn" aria-selected="true">כניסה</button>
+      <button type="button" role="tab" id="authTabUp" aria-selected="false">הרשמה</button>
     </div>
-    <div id="regClaim" class="admin-row" hidden>
-      <p class="set-note">לקבוצה הזו אין עדיין בעלים. מי שפותח אותה הופך לבעל הקבוצה, מוסיף שחקנים וממנה מנהלים.</p>
-      <label for="regClaimName">השם המלא שלכם</label><input type="text" id="regClaimName" maxlength="40" autocomplete="name">
-      <label for="regClaimPin">קוד אישי לבעל הקבוצה (4-8 ספרות)</label><input type="password" inputmode="numeric" id="regClaimPin" class="pin" maxlength="8" autocomplete="new-password">
-      <button type="button" class="btn solid" id="regClaimGo">פתח את הקבוצה</button>
-    </div>
-    <p class="msg" id="regMsg" role="status"></p>
-    <label for="regSport" class="set-note">ענף אחר?</label>
-    <select id="regSport"><option value="tennis">🎾 טניס</option><option value="padel">🎾 פאדל</option><option value="football">⚽ כדורגל</option><option value="basketball">🏀 כדורסל</option><option value="pickleball">🏓 פיקלבול</option><option value="squash">🎾 סקווש</option><option value="volleyball">🏐 כדורעף</option></select>
+    <form id="authForm" class="admin-row" novalidate>
+      <div id="authNameWrap" hidden><label for="authName">שם מלא</label><input type="text" id="authName" maxlength="40" autocomplete="name" placeholder="למשל: שי יוסקו"></div>
+      <label for="authEmail">אימייל</label><input type="email" id="authEmail" autocomplete="email" dir="ltr" placeholder="name@example.com">
+      <label for="authPass">סיסמה</label><input type="password" id="authPass" autocomplete="current-password" dir="ltr" minlength="8">
+      <p class="set-note" id="authPassHint" hidden>לפחות 8 תווים.</p>
+      <button type="submit" class="btn solid" id="authGo">כניסה</button>
+      <button type="button" class="linkish" id="authForgot">שכחתי סיסמה</button>
+    </form>
+    <p class="msg" id="authMsg" role="status"></p>
   </div>
 </div>
+
+<div class="screen" id="recoveryScreen" hidden>
+  <div class="reg-card">
+    <h2>בחירת סיסמה חדשה</h2>
+    <label for="recPass">סיסמה חדשה (לפחות 8 תווים)</label><input type="password" id="recPass" autocomplete="new-password" dir="ltr">
+    <button type="button" class="btn solid" id="recGo">שמור סיסמה</button>
+    <p class="msg" id="recMsg" role="status"></p>
+  </div>
+</div>
+
+<div class="screen" id="groupsScreen" hidden>
+  <div class="reg-card wide">
+    <div class="settings-head"><h2>הקבוצות שלי</h2><button type="button" class="x" id="groupsClose" aria-label="סגירה" hidden>✕</button></div>
+    <div id="legacyBox"></div>
+    <ul class="group-cards" id="groupCards"></ul>
+    <button type="button" class="btn solid big" id="groupsCreate">+ יצירת קבוצה חדשה</button>
+    <p class="set-note">מקבלים קישור הצטרפות מהמנהל של קבוצה קיימת? פשוט פותחים אותו.</p>
+    <p class="msg" id="groupsMsg" role="status"></p>
+  </div>
+</div>
+
+<div class="screen" id="createScreen" hidden>
+  <div class="reg-card">
+    <div class="settings-head"><h2>יצירת קבוצה חדשה</h2><button type="button" class="x" id="createClose" aria-label="סגירה">✕</button></div>
+    <label for="cgName">שם הקבוצה</label><input type="text" id="cgName" maxlength="40" placeholder="למשל: טניס שישי">
+    <span class="set-label">ענף הספורט</span>
+    <div class="sports" id="cgSports" role="group" aria-label="ענף הספורט"></div>
+    <label for="cgDesc">תיאור (לא חובה)</label><input type="text" id="cgDesc" maxlength="200">
+    <button type="button" class="btn solid" id="cgGo">צור קבוצה</button>
+    <p class="set-note">אתם תהיו בעלי הקבוצה, ותוכלו להזמין שחקנים ולמנות מנהלים.</p>
+    <p class="msg" id="cgMsg" role="status"></p>
+  </div>
+</div>
+
+<div class="screen" id="joinScreen" hidden>
+  <div class="reg-card">
+    <h2 id="joinTitle">הצטרפות לקבוצה</h2>
+    <p class="set-note" id="joinInfo"></p>
+    <button type="button" class="btn solid" id="joinGo">שלח בקשת הצטרפות</button>
+    <button type="button" class="btn" id="joinSkip">לקבוצות שלי</button>
+    <p class="msg" id="joinMsg" role="status"></p>
+  </div>
+</div>
+
+<div class="screen" id="profileScreen" hidden>
+  <div class="reg-card">
+    <div class="settings-head"><h2>הפרופיל שלי</h2><button type="button" class="x" id="profileClose" aria-label="סגירה">✕</button></div>
+    <label for="pfName">שם מלא</label><input type="text" id="pfName" maxlength="40" autocomplete="name">
+    <p class="set-note">השם משמש כשאתם יוצרים קבוצה או מבקשים להצטרף. השם שמופיע בתוך קבוצה קיימת לא משתנה.</p>
+    <span class="set-label">אימייל</span><p class="set-note" id="pfEmail" dir="ltr"></p>
+    <button type="button" class="btn solid" id="pfSave">שמור</button>
+    <span class="set-label">הקבוצות שלי והתפקיד שלי</span>
+    <ul class="role-list" id="pfRoles"></ul>
+    <p class="msg" id="pfMsg" role="status"></p>
+  </div>
+</div>
+
+<div class="screen" id="securityScreen" hidden>
+  <div class="reg-card">
+    <div class="settings-head"><h2>אבטחה ושינוי סיסמה</h2><button type="button" class="x" id="securityClose" aria-label="סגירה">✕</button></div>
+    <label for="secPass">סיסמה חדשה (לפחות 8 תווים)</label><input type="password" id="secPass" autocomplete="new-password" dir="ltr">
+    <label for="secPass2">שוב, לאימות</label><input type="password" id="secPass2" autocomplete="new-password" dir="ltr">
+    <button type="button" class="btn solid" id="secGo">שנה סיסמה</button>
+    <p class="msg" id="secMsg" role="status"></p>
+  </div>
+</div>
+
 <div class="scrim" id="modalScrim" hidden></div>
 <div class="modal" id="playersModal" hidden role="dialog" aria-modal="true" aria-labelledby="pmTitle">
-  <div class="settings-head"><h2 id="pmTitle">ניהול שחקנים</h2><button type="button" class="x" id="pmClose" aria-label="סגירה">✕</button></div>
-  <div class="join-row"><input type="text" id="pmAddName" maxlength="40" placeholder="שם מלא של שחקן חדש" aria-label="שם שחקן חדש"><button type="button" id="pmAdd">הוסף</button></div>
-  <ul class="members" id="pmList"></ul>
+  <div class="settings-head"><h2 id="pmTitle">ניהול הקבוצה</h2><button type="button" class="x" id="pmClose" aria-label="סגירה">✕</button></div>
+  <div class="set-block">
+    <h3>קישור הצטרפות לנעיצה בוואטסאפ</h3>
+    <div class="join-row"><input type="text" id="inviteLink" readonly aria-label="קישור הצטרפות"><button type="button" id="inviteCopy">העתק</button></div>
+    <button type="button" class="linkish" id="inviteRenew">צור קישור חדש (הקישור הישן יפסיק לעבוד)</button>
+  </div>
+  <div class="set-block" id="requestsBlock" hidden>
+    <h3>בקשות הצטרפות</h3>
+    <ul class="members" id="requestsList"></ul>
+  </div>
+  <div class="set-block">
+    <h3>חברי הקבוצה</h3>
+    <div class="join-row"><input type="text" id="pmAddName" maxlength="40" placeholder="הוספת שחקן בלי חשבון (שם מלא)" aria-label="שם שחקן חדש"><button type="button" id="pmAdd">הוסף</button></div>
+    <ul class="members" id="pmList"></ul>
+  </div>
   <div id="roleDialog" class="role-dialog" hidden></div>
-  <details class="audit"><summary>יומן שינויי הרשאות</summary><ul id="auditList"></ul></details>
+  <details class="audit"><summary>הגדרות הקבוצה</summary>
+    <div class="admin-row" style="margin-top:8px">
+      <label for="gsName">שם הקבוצה</label><input type="text" id="gsName" maxlength="40">
+      <label for="gsDesc">תיאור</label><input type="text" id="gsDesc" maxlength="200">
+      <button type="button" class="btn solid" id="gsSave">שמור</button>
+    </div>
+  </details>
+  <details class="audit"><summary>יומן שינויים</summary><ul id="auditList"></ul></details>
   <p class="msg" id="pmMsg" role="status"></p>
 </div>
+
 <div class="wrap">
 <div class="col col-a">
   <header aria-live="polite" data-tab="round">
-    <h1><span id="sportTitle">הזמנות מגרשי טניס</span> · יבנה · רחובות · ראשון לציון · מזכרת בתיה</h1>
+    <h1><span id="sportTitle">הזמנות מגרשים</span></h1>
     <p class="eyebrow">הזמין אחרון</p>
     <p class="last-name" id="lastName">טוען…</p>
     <div class="last-meta" id="lastMeta"><span class="ago">ההזמנה האחרונה תופיע כאן</span></div>
@@ -361,6 +462,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119h"></script>
+<script src="app.js?v=20261120a"></script>
 </body>
 </html>

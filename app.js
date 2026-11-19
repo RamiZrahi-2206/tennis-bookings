@@ -1,25 +1,25 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261119h";
+  const APP_VERSION = "20261120a";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
       if(v && v!==APP_VERSION && sessionStorage.getItem("reloadedFor")!==v){
         sessionStorage.setItem("reloadedFor", v);
-        location.replace(location.pathname+"?u="+encodeURIComponent(v));
+        const q=new URLSearchParams(location.search); q.set("u", v);
+        location.replace(location.pathname+"?"+q.toString()+location.hash);
       }
     }catch(e){}
   }
   checkVersion();
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) checkVersion(); });
-  const SUPABASE_URL = "https://xcjbwctlnjybabrfkvcn.supabase.co";
-  const SUPABASE_KEY = "sb_publishable_XqMv4nZHVi_xN28fWNX_UQ_QJC8JueZ"; // public publishable key, protected by RLS
-  const COURTS = ["יבנה","רחובות","ראשון לציון","מזכרת בתיה"];
-  const OTHER = "אחר"; // any court outside the three; its name is typed in
-  const $ = id => document.getElementById(id);
 
-  // ---- settings: who I am + sport theme (saved on this device only) ----
+  const SUPABASE_URL = "https://xcjbwctlnjybabrfkvcn.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_XqMv4nZHVi_xN28fWNX_UQ_QJC8JueZ"; // public publishable key; access is enforced by RLS
+  const SITE_URL = location.origin + location.pathname.replace(/index\.html$/, "");
+  const COURTS = ["יבנה","רחובות","ראשון לציון","מזכרת בתיה"];
+  const OTHER = "אחר"; // any court outside the list; its name is typed in
   const SPORTS = [
     {id:"tennis", name:"טניס", emoji:"🎾", color:"#1f6b45"},
     {id:"padel", name:"פאדל", emoji:"🎾", color:"#1d4f91"},
@@ -29,64 +29,27 @@
     {id:"squash", name:"סקווש", emoji:"🎾", color:"#7f1d3a"},
     {id:"volleyball", name:"כדורעף", emoji:"🏐", color:"#9a5b0b"},
   ];
-  const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} } };
-  const linkSport = new URLSearchParams(location.search).get("sport");
-  if(SPORTS.some(x=>x.id===linkSport)) store.set("sport", linkSport);
-  let sport = SPORTS.find(x=>x.id===store.get("sport")) || SPORTS[0];
-  let me = ""; // the registered member on this device, for the current group
-  function applySport(){
-    document.documentElement.setAttribute("data-sport", sport.id);
-    const t="הזמנות מגרשי "+sport.name;
-    $("sportTitle").textContent=t; document.title=t; $("miniTitle").textContent=t;
-    const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", sport.color);
-    const back = prevSport && prevSport.id!==sport.id ? prevSport : null;
-    ["sportBack","regBack"].forEach(id=>{ const b=$(id); if(!b) return; b.hidden=!back; if(back) b.textContent="→ חזרה ל"+back.name; });
-    const box=$("sportBtns"); box.innerHTML="";
-    SPORTS.forEach(sp=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", String(sp.id===sport.id));
-      const sw=document.createElement("span"); sw.className="sw"; sw.style.background=sp.color;
-      const l=document.createElement("span"); l.textContent=sp.emoji+" "+sp.name;
-      b.append(sw,l); b.onclick=()=>switchSport(sp); box.appendChild(b); });
-  }
-  // the sport we came from, so the user can go back to it (also with the phone's back gesture)
-  let prevSport = SPORTS.find(x=>x.id===store.get("prevSport")) || null;
-  function switchSport(sp, fromHistory){
-    if(sport.id===sp.id) return;
-    prevSport = sport; store.set("prevSport", sport.id);
-    if(!fromHistory){ try{ history.pushState({sport:sp.id}, "", location.pathname+"?sport="+sp.id); }catch(e){} }
-    sport=sp; store.set("sport", sp.id);
-    editingId=null; draft=null; rows=[]; members=[]; players=[]; rotation=[]; roundStarts=[]; ready=false;
-    loadAuth(); loadReg(); $("regScreen").hidden=true; applySport(); render(); if(sb) load();
-  }
-  function goBack(){ if(prevSport) switchSport(prevSport); }
-  window.addEventListener("popstate", e=>{
-    const id = (e.state && e.state.sport) || new URLSearchParams(location.search).get("sport");
-    const sp = SPORTS.find(x=>x.id===id); if(sp) switchSport(sp, true);
-  });
-  try{ history.replaceState({sport:sport.id}, "", location.pathname+"?sport="+sport.id); }catch(e){}
-  function openSettings(open){
-    $("settings").hidden=!open; $("scrim").hidden=!open; $("settingsBtn").setAttribute("aria-expanded", String(open));
-    if(open) $("settingsClose").focus(); else $("settingsBtn").focus();
-  }
-  $("settingsBtn").onclick=()=>openSettings(true);
-  $("settingsClose").onclick=()=>openSettings(false);
-  $("scrim").onclick=()=>openSettings(false);
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("settings").hidden) openSettings(false); });
-  applySport();
+  const sportOf = id => SPORTS.find(x=>x.id===id) || SPORTS[0];
+  const ROLE_HE = {owner:"בעל הקבוצה", admin:"מנהל", member:"שחקן"};
+  const ERR_HE = {not_admin:"רק מנהל הקבוצה יכול לעשות את זה.", not_owner:"רק בעל הקבוצה יכול לעשות את זה.", is_owner:"אי אפשר לשנות או להסיר את בעל הקבוצה.",
+    bad_name:"כתבו שם של 2 עד 40 תווים.", exists:"השם כבר קיים בקבוצה.", not_found:"לא נמצא.", confirm_mismatch:"השם שהוקלד לא תואם.", same:"אתם כבר בעלי הקבוצה.",
+    no_account:"לשחקן הזה אין עדיין חשבון. רק מי שנרשם לאפליקציה יכול להיות מנהל.", linked:"השחקן הזה כבר מחובר לחשבון אחר.", wrong_pin:"הקוד שגוי.",
+    bad_code:"קישור ההצטרפות לא תקף. בקשו קישור חדש ממנהל הקבוצה.", no_name:"הוסיפו שם מלא בפרופיל שלכם קודם.", bad_sport:"בחרו ענף ספורט.", not_signed_in:"צריך להתחבר קודם."};
+  const errText = e => ERR_HE[e] || "משהו השתבש. נסו שוב.";
+  const $ = id => document.getElementById(id);
+  const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ if(v==null||v==="") localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} } };
+  const esc = t => String(t).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const roleTag = r => '<span class="role-tag '+r+'">'+ROLE_HE[r]+'</span>';
+  const say = (id,t,err)=>{ const m=$(id); if(!m) return; m.textContent=t||""; m.className="msg"+(err?" err":""); };
 
-  // ---- tabs (phones): round / add / history / share. Wide screens show everything in two columns. ----
-  const TABS=["round","add","history","share"];
-  let tab = TABS.includes(store.get("tab")) ? store.get("tab") : "round";
-  function setTab(t, keepScroll){
-    tab=t; store.set("tab", t);
-    document.querySelectorAll(".wrap [data-tab]").forEach(el=>el.classList.toggle("on", el.dataset.tab.split(" ").includes(t)));
-    document.querySelectorAll("#tabbar button").forEach(b=>{ if(b.dataset.go===t) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
-    if(!keepScroll) window.scrollTo(0,0);
-    if(t==="history" && typeof fitHistory==="function") fitHistory();
-  }
-  document.querySelectorAll("#tabbar button").forEach(b=>b.onclick=()=>setTab(b.dataset.go));
-  $("goShare").onclick=()=>setTab("share");
-  setTab(tab, true);
-  let court = COURTS[0], filter = "הכל", rows = [], players = [], members = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false, editingId = null, draft = null;
+  // state
+  let sb=null, user=null, profile=null, groups=[], group=null; // group = {id,name,sport,description,role,status,members}
+  let court = COURTS[0], filter = "הכל", rows = [], members = [], players = [], rotation = [], roundStarts = [];
+  let allPaid = false, pendingDel = null, ready = false, editingId = null, draft = null, me = "", channel = null;
+  let sport = SPORTS[0];
+  const myRole = () => group ? group.role : "member";
+  const isAdmin = () => !!group && group.status==="active" && (group.role==="owner" || group.role==="admin");
+  const roleOf = n => (members.find(m=>m.name===n)||{}).role || "member";
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
   const dmy = iso => { const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y.slice(2); };
@@ -98,8 +61,27 @@
     if(n<0) return "בעוד "+(-n)+" ימים"; return "לפני "+n+" ימים"; };
   const isActive = r => r.status!=="cancelled";
   const byNewest = (a,b)=> b.date.localeCompare(a.date) || String(b.created_at||"").localeCompare(String(a.created_at||""));
+  async function rpc(fn, args){ const {data,error} = await sb.rpc(fn, args||{}); if(error) return {ok:false,error:"network"}; return data; }
 
   $("date").value = todayISO();
+
+  // ---------- screens ----------
+  const SCREENS=["authScreen","recoveryScreen","groupsScreen","createScreen","joinScreen","profileScreen","securityScreen"];
+  function showScreen(id){
+    SCREENS.forEach(s=>{ $(s).hidden = s!==id; });
+    $("settingsBtn").hidden = !!id || !user;
+    if(id) window.scrollTo(0,0);
+  }
+
+  // ---------- theme follows the group's sport ----------
+  function applySport(){
+    sport = sportOf(group ? group.sport : "tennis");
+    document.documentElement.setAttribute("data-sport", sport.id);
+    const t = group ? group.name : "הזמנות מגרשים";
+    $("sportTitle").textContent = group ? group.name+" · "+sport.emoji+" "+sport.name : t;
+    $("miniTitle").textContent = t; document.title = group ? group.name+" – הזמנות מגרשים" : "הזמנות מגרשים";
+    const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", sport.color);
+  }
 
   function makeBtns(el, list, get, set){
     el.innerHTML="";
@@ -111,21 +93,217 @@
   makeBtns($("filterBtns"), ["הכל",...COURTS,OTHER], ()=>filter, v=>{filter=v;});
   const isOther = c => !COURTS.includes(c);
 
-  function setMsg(t, err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
+  function setMsg(t, err){ say("msg", t, err); }
 
+  // ---------- menu ----------
+  function openSettings(open){
+    $("settings").hidden=!open; $("scrim").hidden=!open; $("settingsBtn").setAttribute("aria-expanded", String(open));
+    if(open) $("settingsClose").focus();
+  }
+  $("settingsBtn").onclick=()=>{ renderMenu(); openSettings(true); };
+  $("settingsClose").onclick=()=>openSettings(false);
+  $("scrim").onclick=()=>openSettings(false);
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(!$("settings").hidden) openSettings(false); if(!$("playersModal").hidden) closeManage(); } });
+  function renderMenu(){
+    $("meName").textContent = (profile && profile.full_name) || "—";
+    $("meEmail").textContent = user ? user.email : "";
+    $("groupBlock").hidden = !group;
+    if(group) $("groupNow").innerHTML = esc(group.name)+" · "+sportOf(group.sport).name+" "+roleTag(group.role);
+    $("menuManage").hidden = !isAdmin();
+  }
+  document.querySelectorAll(".menu button").forEach(b=>b.onclick=()=>{
+    const m=b.dataset.menu; openSettings(false);
+    if(m==="profile") openProfile();
+    else if(m==="groups"||m==="switch") openGroups(true);
+    else if(m==="create") openCreate();
+    else if(m==="manage") openManage();
+    else if(m==="security"){ $("secPass").value=""; $("secPass2").value=""; say("secMsg",""); showScreen("securityScreen"); }
+    else if(m==="signout") signOut();
+  });
+
+  // ---------- auth ----------
+  let authMode="in";
+  function setAuthMode(m){
+    authMode=m; $("authTabIn").setAttribute("aria-selected", String(m==="in")); $("authTabUp").setAttribute("aria-selected", String(m==="up"));
+    $("authNameWrap").hidden = m!=="up"; $("authPassHint").hidden = m!=="up"; $("authForgot").hidden = m!=="in";
+    $("authTitle").textContent = m==="up" ? "הרשמה" : "כניסה"; $("authGo").textContent = m==="up" ? "יצירת חשבון" : "כניסה";
+    $("authPass").setAttribute("autocomplete", m==="up" ? "new-password" : "current-password"); say("authMsg","");
+  }
+  $("authTabIn").onclick=()=>setAuthMode("in"); $("authTabUp").onclick=()=>setAuthMode("up");
+  $("authForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+    const email=$("authEmail").value.trim(), pass=$("authPass").value;
+    if(!/^\S+@\S+\.\S+$/.test(email)){ say("authMsg","כתבו כתובת אימייל תקינה.",true); return; }
+    $("authGo").disabled=true;
+    if(authMode==="up"){
+      const name=$("authName").value.trim().replace(/\s+/g," ");
+      if(name.length<2){ $("authGo").disabled=false; say("authMsg","כתבו שם מלא.",true); return; }
+      if(pass.length<8){ $("authGo").disabled=false; say("authMsg","סיסמה צריכה להיות לפחות 8 תווים.",true); return; }
+      const {data,error} = await sb.auth.signUp({email, password:pass, options:{data:{full_name:name}, emailRedirectTo: SITE_URL+location.search}});
+      $("authGo").disabled=false;
+      if(error){ say("authMsg", /registered/i.test(error.message) ? "כבר יש חשבון עם האימייל הזה. היכנסו או אפסו סיסמה." : "ההרשמה נכשלה: "+error.message, true); return; }
+      if(!data.session){ say("authMsg","שלחנו לכם מייל לאימות הכתובת. לחצו על הקישור במייל, והחשבון יופעל."); return; }
+    } else {
+      const {error} = await sb.auth.signInWithPassword({email, password:pass});
+      $("authGo").disabled=false;
+      if(error){ say("authMsg", /confirm/i.test(error.message) ? "עדיין לא אימתתם את האימייל. בדקו את תיבת הדואר." : "האימייל או הסיסמה שגויים.", true); return; }
+    }
+  });
+  $("authForgot").onclick=async()=>{
+    const email=$("authEmail").value.trim();
+    if(!/^\S+@\S+\.\S+$/.test(email)){ say("authMsg","כתבו את האימייל שלכם בשדה למעלה, ואז לחצו שוב.",true); return; }
+    const {error} = await sb.auth.resetPasswordForEmail(email, {redirectTo: SITE_URL});
+    say("authMsg", error ? "לא הצלחנו לשלוח: "+error.message : "אם יש חשבון עם האימייל הזה, נשלח אליו קישור לאיפוס סיסמה.", !!error);
+  };
+  $("recGo").onclick=async()=>{
+    const p=$("recPass").value; if(p.length<8){ say("recMsg","לפחות 8 תווים.",true); return; }
+    const {error} = await sb.auth.updateUser({password:p});
+    if(error){ say("recMsg","לא נשמר: "+error.message,true); return; }
+    say("recMsg","הסיסמה עודכנה."); setTimeout(()=>afterSignIn(),800);
+  };
+  $("secGo").onclick=async()=>{
+    const p=$("secPass").value, p2=$("secPass2").value;
+    if(p.length<8){ say("secMsg","לפחות 8 תווים.",true); return; } if(p!==p2){ say("secMsg","הסיסמאות לא זהות.",true); return; }
+    const {error} = await sb.auth.updateUser({password:p});
+    say("secMsg", error ? "לא נשמר: "+error.message : "הסיסמה שונתה.", !!error);
+  };
+  $("securityClose").onclick=()=>showScreen(group?null:"groupsScreen");
+  async function signOut(){ await sb.auth.signOut(); }
+
+  // ---------- profile ----------
+  async function openProfile(){
+    $("pfName").value = (profile&&profile.full_name)||""; $("pfEmail").textContent = user.email; say("pfMsg","");
+    const ul=$("pfRoles"); ul.innerHTML="";
+    groups.forEach(g=>{ const li=document.createElement("li"); li.innerHTML='<span>'+esc(g.name)+' · '+sportOf(g.sport).name+'</span>'+(g.status==="pending"?'<span class="role-tag">ממתין לאישור</span>':roleTag(g.role)); ul.appendChild(li); });
+    if(!groups.length) ul.innerHTML='<li>עדיין לא הצטרפתם לקבוצה.</li>';
+    showScreen("profileScreen");
+  }
+  $("pfSave").onclick=async()=>{
+    const n=$("pfName").value.trim().replace(/\s+/g," "); if(n.length<2){ say("pfMsg","כתבו שם מלא.",true); return; }
+    const {error} = await sb.from("profiles").update({full_name:n}).eq("id", user.id);
+    if(error){ say("pfMsg","לא נשמר.",true); return; } profile.full_name=n; say("pfMsg","נשמר.");
+  };
+  $("profileClose").onclick=()=>showScreen(group?null:"groupsScreen");
+
+  // ---------- my groups ----------
+  async function loadGroups(){
+    const {data,error} = await sb.rpc("my_groups"); groups = error ? [] : (data||[]);
+    return groups;
+  }
+  async function openGroups(closable){
+    await loadGroups(); renderGroups(); $("groupsClose").hidden = !closable || !group; showScreen("groupsScreen");
+  }
+  function renderGroups(){
+    const ul=$("groupCards"); ul.innerHTML="";
+    if(!groups.length) ul.innerHTML='<li style="display:block">עדיין אין לכם קבוצות. צרו קבוצה חדשה, או פתחו קישור הצטרפות שקיבלתם.</li>';
+    groups.forEach(g=>{
+      const sp=sportOf(g.sport); const li=document.createElement("li"); if(group && g.id===group.id) li.className="current";
+      li.innerHTML='<span class="gc-emoji" style="background:'+sp.color+'22">'+sp.emoji+'</span>'
+        +'<span><span class="gc-name">'+esc(g.name)+'</span><br><span class="gc-meta">'+sp.name+' · '+g.members+' חברים · '+(g.status==="pending"?"ממתין לאישור מנהל":ROLE_HE[g.role])+'</span></span>';
+      const b=document.createElement("button"); b.type="button"; b.className="btn"+(g.status==="pending"?"":" solid");
+      b.textContent = g.status==="pending" ? "ממתין" : "כניסה"; b.disabled = g.status==="pending";
+      b.onclick=()=>enterGroup(g.id); li.appendChild(b); ul.appendChild(li);
+    });
+    renderLegacy();
+  }
+  $("groupsClose").onclick=()=>showScreen(null);
+  $("groupsCreate").onclick=()=>openCreate();
+
+  // players from the old system (personal code) can link their new account
+  async function renderLegacy(){
+    const box=$("legacyBox"); box.innerHTML="";
+    const {data} = await sb.rpc("legacy_groups"); if(!data || !data.length) return;
+    data.forEach(l=>{
+      const d=document.createElement("div"); d.className="legacy";
+      d.innerHTML='<strong>היה לכם קוד אישי במערכת הקודמת?</strong><span class="set-note">'+esc(l.player)+' בקבוצת '+esc(l.name)+': הקלידו את הקוד כדי לחבר את החשבון ולשמור את התפקיד וההיסטוריה.</span>'
+        +'<div class="join-row"><input type="password" inputmode="numeric" class="pin" maxlength="8" aria-label="הקוד הישן"><button type="button">חבר</button></div>';
+      d.querySelector("button").onclick=async()=>{ const pin=d.querySelector("input").value.trim();
+        const r=await rpc("group_link_legacy",{p_group:l.id,p_name:l.player,p_pin:pin});
+        if(!r.ok){ say("groupsMsg",errText(r.error),true); return; } say("groupsMsg","החשבון חובר ל"+l.player+"."); await loadGroups(); renderGroups(); };
+      box.appendChild(d);
+    });
+  }
+
+  // ---------- create group ----------
+  let cgSport="tennis";
+  function openCreate(){
+    $("cgName").value=""; $("cgDesc").value=""; say("cgMsg","");
+    const box=$("cgSports"); box.innerHTML="";
+    SPORTS.forEach(sp=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", String(sp.id===cgSport));
+      b.innerHTML='<span class="sw" style="background:'+sp.color+'"></span><span>'+sp.emoji+' '+sp.name+'</span>';
+      b.onclick=()=>{ cgSport=sp.id; box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed","false")); b.setAttribute("aria-pressed","true"); }; box.appendChild(b); });
+    showScreen("createScreen"); setTimeout(()=>$("cgName").focus(),0);
+  }
+  $("createClose").onclick=()=>openGroups(true);
+  $("cgGo").onclick=async()=>{
+    const r=await rpc("group_create",{p_name:$("cgName").value, p_sport:cgSport, p_description:$("cgDesc").value});
+    if(!r.ok){ say("cgMsg",errText(r.error),true); return; }
+    await loadGroups(); enterGroup(r.id);
+  };
+
+  // ---------- join with an invite link ----------
+  let joinCode = new URLSearchParams(location.search).get("join");
+  async function openJoin(){
+    const r=await rpc("group_by_code",{p_code:joinCode});
+    say("joinMsg","");
+    if(!r.ok){ $("joinTitle").textContent="הצטרפות לקבוצה"; $("joinInfo").textContent=errText(r.error); $("joinGo").hidden=true; showScreen("joinScreen"); return; }
+    const sp=sportOf(r.sport);
+    $("joinTitle").textContent=sp.emoji+" "+r.name;
+    if(r.mine==="active"){ joinCode=null; clearJoinParam(); await loadGroups(); enterGroup(r.id); return; }
+    $("joinInfo").textContent = r.mine==="pending" ? "הבקשה שלכם להצטרף כבר נשלחה. מנהל הקבוצה צריך לאשר אותה." : "קבוצת "+sp.name+" עם "+r.members+" חברים. שלחו בקשה, ומנהל הקבוצה יאשר אותה.";
+    $("joinGo").hidden = r.mine==="pending"; showScreen("joinScreen");
+  }
+  function clearJoinParam(){ const q=new URLSearchParams(location.search); q.delete("join"); try{ history.replaceState(null,"",location.pathname+(q.toString()?"?"+q:"")); }catch(e){} }
+  $("joinGo").onclick=async()=>{
+    const r=await rpc("group_join_request",{p_code:joinCode});
+    if(!r.ok){ say("joinMsg",errText(r.error),true); return; }
+    if(r.status==="active"){ joinCode=null; clearJoinParam(); await loadGroups(); enterGroup(r.id); return; }
+    $("joinGo").hidden=true; $("joinInfo").textContent="הבקשה נשלחה. כשמנהל הקבוצה יאשר, הקבוצה תופיע אצלכם ב\"הקבוצות שלי\".";
+  };
+  $("joinSkip").onclick=()=>{ joinCode=null; clearJoinParam(); openGroups(false); };
+
+  // ---------- enter a group ----------
+  async function enterGroup(id){
+    const g = groups.find(x=>x.id===id && x.status==="active"); if(!g){ openGroups(false); return; }
+    group=g; store.set("group", g.id);
+    rows=[]; members=[]; players=[]; rotation=[]; roundStarts=[]; ready=false; editingId=null; draft=null; filter="הכל";
+    applySport(); showScreen(null); render(); await load(); subscribe();
+  }
+  function subscribe(){
+    if(channel) sb.removeChannel(channel);
+    const f="group_id=eq."+group.id;
+    channel = sb.channel("g-"+group.id)
+      .on("postgres_changes",{event:"*",schema:"public",table:"bookings",filter:f},()=>load())
+      .on("postgres_changes",{event:"*",schema:"public",table:"rounds",filter:f},()=>load())
+      .on("postgres_changes",{event:"*",schema:"public",table:"rotation",filter:f},()=>load())
+      .on("postgres_changes",{event:"*",schema:"public",table:"group_members",filter:f},()=>refreshGroupAndLoad())
+      .subscribe();
+  }
+  async function refreshGroupAndLoad(){
+    await loadGroups(); const g=groups.find(x=>group && x.id===group.id && x.status==="active");
+    if(!g){ group=null; store.set("group",""); openGroups(false); say("groupsMsg","כבר אין לכם גישה לקבוצה הזו.",true); return; }
+    group=g; applySport(); await load();
+  }
+
+  // ---------- group data ----------
   async function load(){
-    const loadedFor = sport.id;
+    if(!group) return;
+    const gid=group.id;
     const [b,p,r,ro] = await Promise.all([
-      sb.from("bookings").select("id,name,date,court,notes,created_at,status").eq("sport", sport.id).order("date",{ascending:false}).limit(2000),
-      sb.from("group_members").select("name,role,registered_at").eq("sport", sport.id),
-      sb.from("rounds").select("started_at").eq("sport", sport.id).order("started_at",{ascending:false}).limit(2),
-      sb.from("rotation").select("name,sort_order").eq("sport", sport.id).order("sort_order")
+      sb.from("bookings").select("id,name,date,court,notes,created_at,status").eq("group_id", gid).order("date",{ascending:false}).limit(2000),
+      sb.from("group_members").select("name,role,user_id,status").eq("group_id", gid),
+      sb.from("rounds").select("started_at").eq("group_id", gid).order("started_at",{ascending:false}).limit(2),
+      sb.from("rotation").select("name,sort_order").eq("group_id", gid).order("sort_order")
     ]);
-    if(loadedFor!==sport.id) return; // the sport changed while loading
+    if(!group || group.id!==gid) return; // switched group while loading
     if(b.error){ setMsg("לא הצלחנו לטעון את ההזמנות. בדקו את החיבור ונסו לרענן.", true); return; }
-    rows = b.data || []; members = p.data||[]; loadReg(); players = members.map(x=>x.name); rotation = (ro.data||[]).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
+    rows = b.data || [];
+    members = (p.data||[]);
+    players = members.filter(m=>m.status==="active").map(m=>m.name);
+    me = (members.find(m=>m.user_id===user.id && m.status==="active")||{}).name || "";
+    rotation = (ro.data||[]).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
     if(!ready){ ready=true; $("submit").disabled=false; if($("msg").textContent==="מתחבר לרשימה המשותפת…") setMsg(""); }
-    render(); renderAdmin(); if(!$("playersModal").hidden) renderPlayers(); checkRegistration();
+    render(); updateRoundControls(); if(!$("playersModal").hidden) renderManage();
   }
 
   function itemEl(r, isFirst){
@@ -210,7 +388,7 @@
       meta.append(p,d,a);
     } else {
       $("lastName").textContent = ready ? "עדיין אין הזמנות" : "טוען…";
-      const a=document.createElement("span"); a.className="ago"; a.textContent="רשמו את ההזמנה הראשונה בטופס למטה"; meta.appendChild(a);
+      const a=document.createElement("span"); a.className="ago"; a.textContent="רשמו את ההזמנה הראשונה בלשונית \"הזמנה\""; meta.appendChild(a);
     }
 
     const shown = sorted.filter(r=>filter==="הכל"||(filter===OTHER ? isOther(r.court) : r.court===filter));
@@ -219,16 +397,14 @@
     shown.forEach((r,i)=>h.appendChild(itemEl(r, i===0)));
     fitHistory();
 
-    // per player: last booking — the group's players first, plus anyone else who booked
+    // per player: last booking
     const stats={}; active.forEach(r=>{ const p=stats[r.name]; if(!p) stats[r.name]={last:r,t:1}; else p.t++; });
     const names=[...players, ...Object.keys(stats).filter(n=>!players.includes(n))];
-    // "who booked" dropdown: the group's players, alphabetical
-    const sel=$("name"); let keep=sel.value;
-    if(!keep) keep=me;
+    // "who booked" dropdown: the group's players, alphabetical; defaults to me
+    const sel=$("name"); let keep=sel.value || me;
     sel.innerHTML='<option value="">בחרו שם…</option>';
     players.slice().sort((a,b)=>a.localeCompare(b,"he")).forEach(n=>{const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o);});
     if(players.includes(keep)) sel.value=keep;
-    // never booked first, then whoever booked longest ago
     names.sort((a,b)=>{ const A=stats[a], B=stats[b]; if(!A&&!B) return 0; if(!A) return -1; if(!B) return 1; return byNewest(B.last,A.last); });
     const tb=$("sumBody"); tb.innerHTML="";
     if(!names.length) tb.innerHTML='<tr><td colspan="4" class="empty">אין עדיין נתונים</td></tr>';
@@ -242,13 +418,11 @@
       const d=document.createElement("td"); d.className="n"; d.textContent= p ? p.t : 0;
       tr.append(a,b,c,d); tb.appendChild(tr); });
 
-    // Rounds are started explicitly ("סבב חדש"). A booking belongs to the round in which it was recorded.
-    // Every player in the rotation (fixed order, joiners appended at the end) is in every round.
-    // The next to book is the first player in rotation order who has not paid in this round.
+    // Rounds are started by an admin. A booking belongs to the round in which it was recorded.
+    // Everyone in the rotation (fixed order, joiners appended) is in every round; next = first who hasn't paid.
     const curStart = roundStarts[0] ?? -Infinity;
     const inRound = rows.filter(r=>Date.parse(r.created_at)>=curStart);
     const paidNow = new Set(inRound.filter(isActive).map(r=>r.name));
-    // a player whose booking was cancelled is not paid: the round waits on them until a new date is set
     const waitingNewDate = new Set(inRound.filter(r=>!isActive(r)).map(r=>r.name).filter(n=>!paidNow.has(n)));
     const paid = rotation.filter(n=>paidNow.has(n));
     const notYet = rotation.filter(n=>!paidNow.has(n));
@@ -262,7 +436,6 @@
     if(notYet.length){ txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; }); }
     txt+= next ? "\nמי מזמין הבא?\n👉 "+next+(waitingNewDate.has(next)?" (ההזמנה בוטלה – מתאמים תאריך חדש)":"") : (rotation.length ? "\n🎉 כולם שילמו בסבב! פותחים סבב חדש." : "\nמי מזמין ראשון? הסבב מתחיל בהזמנה הראשונה.");
     txt+="\n\nלהזמנת מגרש באפליקציית לזוז:\nhttps://lazuz.co.il/app/";
-    $("sportLink").value = location.origin+location.pathname.replace(/index\.html$/,"")+"?sport="+sport.id;
     $("shareText").value=txt.trim();
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
   }
@@ -271,19 +444,20 @@
   function renderRound(paid, next, waiting){
     const box=$("nextUp"), list=$("rotation");
     list.innerHTML="";
-    if(!rotation.length){ box.textContent= ready ? "עדיין אין סבב ב"+sport.name+". מי שירשום את ההזמנה הראשונה יפתח אותו, וכל מזמין חדש יצטרף לסוף התור." : "טוען…"; box.classList.remove("done"); return; }
+    if(!rotation.length){ box.textContent= ready ? "עדיין אין סבב בקבוצה. מי שירשום את ההזמנה הראשונה יפתח אותו, וכל מזמין חדש יצטרף לסוף התור." : "טוען…"; box.classList.remove("done"); return; }
     box.innerHTML="";
     if(next){ const l=document.createElement("span"); l.className="next-label"; l.textContent="הבא בתור להזמין"; const n=document.createElement("strong"); n.className="next-name"; n.textContent=next; box.append(l,n);
-      if(waiting.has(next)){ const w=document.createElement("span"); w.className="next-label"; w.textContent="ההזמנה בוטלה – מתאמים תאריך חדש"; box.appendChild(w); } box.classList.remove("done"); }
-    else { box.textContent="🎉 כולם שילמו בסבב. לחצו על \"סבב חדש\" כדי להתחיל מחדש."; box.classList.add("done"); }
+      if(waiting.has(next)){ const w=document.createElement("span"); w.className="next-label"; w.textContent="ההזמנה בוטלה – מתאמים תאריך חדש"; box.appendChild(w); }
+      box.classList.remove("done"); }
+    else { box.textContent="🎉 כולם שילמו בסבב. מנהל הקבוצה יכול לפתוח סבב חדש."; box.classList.add("done"); }
     rotation.forEach(n=>{
       const li=document.createElement("li"); const nm=document.createElement("span"); nm.textContent=n;
+      const rl=roleOf(n); if(rl!=="member"){ const t=document.createElement("span"); t.className="role-tag "+rl; t.textContent=ROLE_HE[rl]; nm.append(" ", t); }
       const st=document.createElement("span"); st.className="st";
       if(paid.includes(n)){ st.textContent="שילם ✓"; li.className="paid"; }
       else if(n===next){ st.textContent= waiting.has(n) ? "ממתין לתאריך חדש" : "הבא בתור"; li.className="next"; }
       else { st.textContent="ממתין"; }
       if(n===me) li.classList.add("me");
-      const rl=roleOf(n); if(rl!=="member"){ const t=document.createElement("span"); t.className="role-tag "+rl; t.textContent=ROLE_HE[rl]; nm.append(" ", t); }
       li.append(nm,st); list.appendChild(li);
     });
   }
@@ -293,37 +467,48 @@
     const h=$("history"), items=h.querySelectorAll(".item");
     h.style.maxHeight="";
     $("scrollHint").hidden = items.length<=4;
-    if(items.length>4){ const top=h.getBoundingClientRect().top; h.style.maxHeight=Math.ceil(items[3].getBoundingClientRect().bottom-top+3)+"px"; }
+    if(items.length>4){ const top=h.getBoundingClientRect().top; const b=items[3].getBoundingClientRect().bottom; if(b>top) h.style.maxHeight=Math.ceil(b-top+3)+"px"; }
   }
   window.addEventListener("resize", fitHistory);
-  $("copyLink").onclick=()=>{
-    const i=$("sportLink"), b=$("copyLink");
-    const done=()=>{ b.textContent="הועתק ✓"; setTimeout(()=>b.textContent="העתק",2000); };
-    try{ navigator.clipboard.writeText(i.value).then(done,()=>{ i.select(); }); }catch(e){ i.select(); }
-  };
-  $("copyBtn").onclick=()=>{
-    const ta=$("shareText");
-    const done=()=>{ $("copyBtn").textContent="הועתק ✓"; setTimeout(()=>$("copyBtn").textContent="העתק טקסט",2000); };
-    try{ navigator.clipboard.writeText(ta.value).then(done,()=>{ta.select();}); }catch(e){ ta.select(); }
-  };
+  function copyFrom(input, btn, label){
+    const done=()=>{ btn.textContent="הועתק ✓"; setTimeout(()=>btn.textContent=label,2000); };
+    try{ navigator.clipboard.writeText(input.value).then(done,()=>{ input.select(); }); }catch(e){ input.select(); }
+  }
+  $("copyBtn").onclick=()=>copyFrom($("shareText"), $("copyBtn"), "העתק טקסט");
 
-  // start a new round: everyone who paid in the round that just ended moves to "not yet paid"
+  // ---------- tabs (phones) ----------
+  const TABS=["round","add","history","share"];
+  let tab = TABS.includes(store.get("tab")) ? store.get("tab") : "round";
+  function setTab(t, keepScroll){
+    tab=t; store.set("tab", t);
+    document.querySelectorAll(".wrap [data-tab]").forEach(el=>el.classList.toggle("on", el.dataset.tab.split(" ").includes(t)));
+    document.querySelectorAll("#tabbar button").forEach(b=>{ if(b.dataset.go===t) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+    if(!keepScroll) window.scrollTo(0,0);
+    if(t==="history") fitHistory();
+  }
+  document.querySelectorAll("#tabbar button").forEach(b=>b.onclick=()=>setTab(b.dataset.go));
+  $("goShare").onclick=()=>setTab("share");
+  setTab(tab, true);
+
+  // ---------- new round (admins) ----------
+  function updateRoundControls(){
+    const a=isAdmin();
+    $("newRoundBtn").hidden = !a || !$("newRoundConfirm").hidden;
+    $("roundAdminNote").hidden = a;
+  }
   $("newRoundBtn").onclick=()=>{ $("newRoundConfirm").hidden=false; $("newRoundBtn").hidden=true; $("roundMsg").textContent=""; };
-  $("newRoundCancel").onclick=()=>{ $("newRoundConfirm").hidden=true; $("newRoundBtn").hidden=false; };
+  $("newRoundCancel").onclick=()=>{ $("newRoundConfirm").hidden=true; updateRoundControls(); };
   $("newRoundYes").onclick=async()=>{
-    if(!sb) return;
     $("newRoundYes").disabled=true;
-    if(!auth){ $("newRoundYes").disabled=false; $("newRoundConfirm").hidden=true; updateRoundControls(); return; }
-    const r = await rpc("group_start_round",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin});
-    $("newRoundYes").disabled=false;
-    $("newRoundConfirm").hidden=true; updateRoundControls();
-    if(!r.ok){ if(r.error==="wrong_pin"||r.error==="locked"||r.error==="not_admin"){ saveAuth(null); renderAdmin(); }
-      $("roundMsg").textContent=errText(r.error)+(r.error==="network"?"":" רק מנהל יכול לפתוח סבב חדש."); return; }
+    const r=await rpc("group_start_round",{p_group:group.id});
+    $("newRoundYes").disabled=false; $("newRoundConfirm").hidden=true; updateRoundControls();
+    if(!r.ok){ $("roundMsg").textContent=errText(r.error); return; }
     await load();
     $("roundMsg").textContent="סבב חדש התחיל. ההודעה לוואטסאפ עודכנה, שלחו אותה לקבוצה.";
     $("shareText").scrollIntoView({behavior:"smooth", block:"center"});
   };
 
+  // ---------- booking ----------
   $("form").addEventListener("submit", async e=>{
     e.preventDefault();
     const name=$("name").value.trim(), date=$("date").value, notes=$("notes").value.trim();
@@ -331,165 +516,81 @@
     if(!date){ setMsg("בחרו תאריך", true); $("date").focus(); return; }
     const courtName = court===OTHER ? $("otherCourt").value.trim() : court;
     if(!courtName){ setMsg("כתבו את שם המגרש", true); $("otherCourt").focus(); return; }
-    if(!sb) return;
+    if(!group) return;
     $("submit").disabled=true;
-    const {error} = await sb.from("bookings").insert({name, date, court: courtName, notes, sport: sport.id});
+    const {error} = await sb.from("bookings").insert({group_id:group.id, name, date, court: courtName, notes});
     if(error) setMsg("ההזמנה לא נשמרה. נסו שוב.", true);
     else {
       $("notes").value=""; setMsg("נרשם: "+name+" · "+courtName+" · "+dmy(date));
-      await load();
-      setTab("round");
+      await load(); setTab("round");
     }
     $("submit").disabled=false;
   });
 
-
-  // ---- group roles: owner / admin / member. Every change is checked on the server with the caller's code. ----
-  const ROLE_HE = {owner:"בעל הקבוצה", admin:"מנהל", member:"שחקן"};
-  const ERR_HE = {wrong_pin:"הקוד שגוי.", locked:"יותר מדי ניסיונות. נסו שוב בעוד 15 דקות.", needs_pin:"עדיין לא הוגדר לך קוד.", not_admin:"רק מנהל יכול לעשות את זה.",
-    not_owner:"רק בעל הקבוצה יכול לעשות את זה.", is_owner:"אי אפשר לשנות או להסיר את בעל הקבוצה.", bad_pin:"קוד צריך להיות 4 עד 8 ספרות.", bad_name:"כתבו שם מלא (2-40 תווים).",
-    exists:"השחקן כבר בקבוצה.", not_found:"השחקן לא נמצא בקבוצה.", has_owner:"לקבוצה כבר יש בעלים.", confirm_mismatch:"השם שהוקלד לא תואם.", same:"אתם כבר בעלי הקבוצה."};
-  const errText = e => ERR_HE[e] || "משהו השתבש. נסו שוב.";
-  const roleOf = n => (members.find(m=>m.name===n)||{}).role || "member";
-  const authKey = () => "auth:"+sport.id;
-  let auth = null; // {name, pin, role}
-  function loadAuth(){ try{ auth = JSON.parse(store.get(authKey())||"null"); }catch(e){ auth=null; } }
-  function saveAuth(a){ auth=a; store.set(authKey(), a?JSON.stringify(a):""); }
-  loadAuth();
-  const roleTag = r => '<span class="role-tag '+r+'">'+ROLE_HE[r]+'</span>';
-  const esc = t => String(t).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const amsg = (t,err)=>{ const m=$("adminMsg"); m.textContent=t||""; m.className="msg"+(err?" err":""); };
-  const pmsg = (t,err)=>{ const m=$("pmMsg"); m.textContent=t||""; m.className="msg"+(err?" err":""); };
-  async function rpc(fn, args){ const {data,error} = await sb.rpc(fn, args); if(error) return {ok:false,error:"network"}; return data; }
-
-  function updateRoundControls(){
-    const isAdmin = !!auth && auth.role!=="member";
-    $("newRoundBtn").hidden = !isAdmin || !$("newRoundConfirm").hidden;
-    $("roundAdminNote").hidden = isAdmin;
+  // ---------- manage group (owner / admins) ----------
+  const pmsg = (t,err)=>say("pmMsg",t,err);
+  async function openManage(){
+    if(!isAdmin()) return;
+    $("playersModal").hidden=false; $("modalScrim").hidden=false; pmsg(""); $("roleDialog").hidden=true;
+    $("gsName").value=group.name; $("gsDesc").value=group.description||"";
+    const r=await rpc("group_invite_code",{p_group:group.id,p_renew:false});
+    $("inviteLink").value = r.ok ? SITE_URL+"?join="+r.code : "";
+    renderManage(); loadAudit(); $("pmClose").focus();
   }
-  function renderAdmin(){
-    updateRoundControls();
-    // my role, next to "my name"
-    $("meName").textContent = me || "עדיין לא נרשמתם";
-    const mr=$("myRole"); if(me){ mr.hidden=false; mr.innerHTML="התפקיד שלי בקבוצה: "+roleTag(roleOf(me)); } else mr.hidden=true;
-    $("regOut").hidden = !me;
-    if(auth && auth.name!==me) saveAuth(null); // admin sign-in belongs to the registered member only
-    if(auth && !members.some(m=>m.name===auth.name && m.role!=="member")) saveAuth(null); // lost admin rights
-    if(auth){ const r=roleOf(auth.name); if(r!==auth.role) saveAuth({...auth, role:r}); }
-    const body=$("adminBody"); const hasOwner = members.some(m=>m.role==="owner");
-    if(!ready){ body.innerHTML=""; return; }
-    if(!hasOwner){
-      body.innerHTML='<div class="admin-row"><p class="set-note">לקבוצת '+esc(sport.name)+' אין עדיין בעלים. מי שפותח אותה הופך לבעל הקבוצה ויכול לנהל שחקנים ומנהלים.</p>'
-        +'<label for="clName">השם שלכם</label><input type="text" id="clName" maxlength="40" value="'+esc(me||"")+'">'
-        +'<label for="clPin">בחרו קוד אישי (4-8 ספרות)</label><input type="password" inputmode="numeric" id="clPin" class="pin" maxlength="8" autocomplete="new-password">'
-        +'<button type="button" class="btn solid" id="clGo">פתח את הקבוצה כבעלים</button></div>';
-      $("clGo").onclick=async()=>{ const n=$("clName").value.trim(), pin=$("clPin").value.trim();
-        const r=await rpc("group_claim",{p_sport:sport.id,p_name:n,p_pin:pin}); if(!r.ok){ amsg(errText(r.error),true); return; }
-        saveReg({name:r.name, token:r.token}); saveAuth({name:r.name,pin,role:"owner"}); amsg("הקבוצה נפתחה. אתם בעלי הקבוצה."); await load(); };
-      return;
-    }
-    if(auth){
-      body.innerHTML='<div class="admin-row"><p class="set-note">מחוברים כ-'+esc(auth.name)+' '+roleTag(auth.role)+'</p>'
-        +'<div class="share"><button type="button" class="btn solid" id="openPlayers">ניהול שחקנים</button><button type="button" class="btn" id="chPinBtn">שינוי קוד</button><button type="button" class="btn" id="signOut">יציאה</button></div>'
-        +'<div id="chPinWrap" hidden class="admin-row"><label for="chPinNew">קוד חדש (4-8 ספרות)</label><input type="password" inputmode="numeric" id="chPinNew" class="pin" maxlength="8" autocomplete="new-password"><button type="button" class="btn solid" id="chPinGo">שמור קוד</button></div></div>';
-      $("openPlayers").onclick=openPlayers;
-      $("signOut").onclick=()=>{ saveAuth(null); amsg("יצאתם מחשבון המנהל."); renderAdmin(); };
-      $("chPinBtn").onclick=()=>{ $("chPinWrap").hidden=!$("chPinWrap").hidden; };
-      $("chPinGo").onclick=async()=>{ const np=$("chPinNew").value.trim(); const r=await rpc("group_set_pin",{p_sport:sport.id,p_name:auth.name,p_old:auth.pin,p_new:np});
-        if(!r.ok){ amsg(errText(r.error),true); return; } saveAuth({...auth,pin:np}); amsg("הקוד עודכן."); renderAdmin(); };
-      return;
-    }
-    if(!me){ body.innerHTML='<p class="set-note">הירשמו קודם, ואז מנהלים יוכלו להיכנס עם הקוד.</p>'; return; }
-    if(roleOf(me)==="member"){ body.innerHTML='<p class="set-note">אין לך הרשאות ניהול בקבוצה הזו. מנהל יכול למנות אותך מ"ניהול שחקנים".</p>'; return; }
-    body.innerHTML='<div class="admin-row"><p class="set-note">כניסת מנהל: '+esc(me)+' '+roleTag(roleOf(me))+'</p>'
-      +'<label for="siPin">קוד אישי</label><input type="password" inputmode="numeric" id="siPin" class="pin" maxlength="8" autocomplete="current-password">'
-      +'<button type="button" class="btn solid" id="siGo">כניסת מנהל</button>'
-      +'<div id="firstPin" hidden class="admin-row"><p class="set-note">עדיין לא הוגדר לך קוד. בחרו קוד אישי חדש:</p><input type="password" inputmode="numeric" id="fpPin" class="pin" maxlength="8" autocomplete="new-password" aria-label="קוד חדש"><button type="button" class="btn solid" id="fpGo">הגדר קוד והיכנס</button></div></div>';
-    $("siGo").onclick=async()=>{ const pin=$("siPin").value.trim();
-      const r=await rpc("group_signin",{p_sport:sport.id,p_name:me,p_pin:pin});
-      if(!r.ok){ if(r.error==="needs_pin"){ $("firstPin").hidden=false; amsg(""); return; } amsg(errText(r.error),true); return; }
-      saveAuth({name:me,pin,role:r.role}); amsg("נכנסתם כ"+ROLE_HE[r.role]+"."); render(); renderAdmin(); };
-    $("fpGo").onclick=async()=>{ const np=$("fpPin").value.trim();
-      const r=await rpc("group_set_pin",{p_sport:sport.id,p_name:me,p_old:null,p_new:np}); if(!r.ok){ amsg(errText(r.error),true); return; }
-      saveAuth({name:me,pin:np,role:r.role}); amsg("הקוד נשמר ונכנסתם."); renderAdmin(); };
-  }
-
-  // ---- registration: each member registers once per device; the name then comes from the registration ----
-  const regKey = () => "reg:"+sport.id;
-  let reg = null, regChecked = "";
-  function loadReg(){ try{ reg = JSON.parse(store.get(regKey())||"null"); }catch(e){ reg=null; } me = reg ? reg.name : ""; }
-  function saveReg(x){ reg=x; store.set(regKey(), x?JSON.stringify(x):""); me = x ? x.name : ""; regChecked = x ? sport.id : ""; }
-  const rmsg = (t,err)=>{ const m=$("regMsg"); m.textContent=t||""; m.className="msg"+(err?" err":""); };
-  async function checkRegistration(){
-    if(!ready) return;
-    if(reg && regChecked!==sport.id){
-      regChecked=sport.id;
-      const r=await rpc("group_whoami",{p_sport:sport.id,p_name:reg.name,p_token:reg.token});
-      if(!r.ok && r.error==="not_registered"){ saveReg(null); saveAuth(null); showReg("ההרשמה במכשיר הזה בוטלה. הירשמו שוב."); render(); renderAdmin(); return; }
-    }
-    if(!reg) showReg(); else $("regScreen").hidden=true;
-  }
-  function showReg(note){
-    const hasOwner = members.some(m=>m.role==="owner");
-    $("regTitle").textContent = "ברוכים הבאים לקבוצת "+sport.name;
-    $("regJoin").hidden = !hasOwner; $("regClaim").hidden = hasOwner;
-    $("regSport").value = sport.id;
-    rmsg(note||""); $("regScreen").hidden=false;
-  }
-  $("regGo").onclick=async()=>{ const n=$("regName").value.trim(); if(n.length<2){ rmsg("כתבו את השם המלא שלכם.",true); return; }
-    $("regGo").disabled=true; const r=await rpc("group_register",{p_sport:sport.id,p_name:n}); $("regGo").disabled=false;
-    if(!r.ok){ rmsg(r.error==="not_member" ? "השם \""+n+"\" לא נמצא ברשימת הקבוצה. בדקו את האיות, או בקשו ממנהל הקבוצה להוסיף אתכם."
-      : r.error==="taken" ? "השם הזה כבר רשום במכשיר אחר. אם זה אתם, בקשו ממנהל לאפס את ההרשמה." : errText(r.error), true); return; }
-    saveReg({name:r.name, token:r.token}); $("regScreen").hidden=true; $("name").value=r.name; setMsg("נרשמתם בהצלחה, "+r.name+"."); render(); renderAdmin(); };
-  $("regName").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("regGo").click(); } });
-  $("regClaimGo").onclick=async()=>{ const n=$("regClaimName").value.trim(), pin=$("regClaimPin").value.trim();
-    const r=await rpc("group_claim",{p_sport:sport.id,p_name:n,p_pin:pin}); if(!r.ok){ rmsg(errText(r.error),true); return; }
-    saveReg({name:r.name, token:r.token}); saveAuth({name:r.name,pin,role:"owner"}); $("regScreen").hidden=true; await load(); };
-  $("regBack").onclick=goBack; $("sportBack").onclick=()=>{ goBack(); };
-  $("regSport").onchange=e=>{ const sp=SPORTS.find(x=>x.id===e.target.value); if(sp && sp.id!==sport.id) switchSport(sp); };
-  $("regOut").onclick=()=>{ $("regOutConfirm").hidden=false; $("regOut").hidden=true; };
-  $("regOutNo").onclick=()=>{ $("regOutConfirm").hidden=true; $("regOut").hidden=false; };
-  $("regOutYes").onclick=async()=>{ if(reg) await rpc("group_unregister",{p_sport:sport.id,p_name:reg.name,p_token:reg.token});
-    saveReg(null); saveAuth(null); $("regOutConfirm").hidden=true; openSettings(false); render(); renderAdmin(); showReg("התנתקתם מהמכשיר הזה."); };
-
-  // "manage players" window
-  function openPlayers(){ if(!$("settings").hidden) openSettings(false); $("playersModal").hidden=false; $("modalScrim").hidden=false; pmsg(""); $("roleDialog").hidden=true; renderPlayers(); loadAudit(); $("pmClose").focus(); }
-  function closePlayers(){ $("playersModal").hidden=true; $("modalScrim").hidden=true; }
-  $("pmClose").onclick=closePlayers; $("modalScrim").onclick=closePlayers;
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("playersModal").hidden) closePlayers(); });
+  function closeManage(){ $("playersModal").hidden=true; $("modalScrim").hidden=true; }
+  $("pmClose").onclick=closeManage; $("modalScrim").onclick=closeManage;
+  $("inviteCopy").onclick=()=>copyFrom($("inviteLink"), $("inviteCopy"), "העתק");
+  $("inviteRenew").onclick=()=>confirmBox("ליצור קישור הצטרפות חדש? הקישור הישן יפסיק לעבוד.", "כן, צור חדש", async()=>{
+    const r=await rpc("group_invite_code",{p_group:group.id,p_renew:true});
+    if(r.ok){ $("inviteLink").value=SITE_URL+"?join="+r.code; $("roleDialog").hidden=true; pmsg("נוצר קישור חדש. עדכנו את הקישור הנעוץ בוואטסאפ."); loadAudit(); } else pmsg(errText(r.error),true); });
+  $("gsSave").onclick=async()=>{ const r=await rpc("group_update",{p_group:group.id,p_name:$("gsName").value,p_description:$("gsDesc").value});
+    if(!r.ok){ pmsg(errText(r.error),true); return; } pmsg("הגדרות הקבוצה נשמרו."); await refreshGroupAndLoad(); };
   const ORDER={owner:0,admin:1,member:2};
-  function renderPlayers(){
-    if(!auth){ closePlayers(); return; }
-    const ul=$("pmList"); ul.innerHTML="";
-    members.slice().sort((a,b)=>ORDER[a.role]-ORDER[b.role]||a.name.localeCompare(b.name,"he")).forEach(m=>{
+  function renderManage(){
+    if(!isAdmin()){ closeManage(); return; }
+    // join requests
+    const reqs=members.filter(m=>m.status==="pending");
+    $("requestsBlock").hidden=!reqs.length;
+    const rl=$("requestsList"); rl.innerHTML="";
+    const unlinked = members.filter(m=>m.status==="active" && !m.user_id).map(m=>m.name).sort((a,b)=>a.localeCompare(b,"he"));
+    reqs.forEach(m=>{
       const li=document.createElement("li");
-      li.innerHTML='<span class="nm">'+esc(m.name)+'<span class="reg-state">'+(m.registered_at?" · רשום ✓":" · טרם נרשם")+'</span></span>'+roleTag(m.role);
-      const canManage = m.role!=="owner" || false;
-      if(m.name!==auth.name && (canManage || auth.role==="owner")){
+      li.innerHTML='<span class="nm">'+esc(m.name)+'</span>'
+        +(unlinked.length?'<select aria-label="לחבר לשחקן קיים"><option value="">שחקן חדש</option>'+unlinked.map(n=>'<option>'+esc(n)+'</option>').join("")+'</select>':'');
+      const ok=document.createElement("button"); ok.type="button"; ok.textContent="אשר";
+      ok.onclick=async()=>{ const link=li.querySelector("select")?li.querySelector("select").value:"";
+        const r=await rpc("group_approve",{p_group:group.id,p_user:m.user_id,p_link_name:link||null}); afterAction(r, link? m.name+" אושר וחובר ל"+link+"." : m.name+" אושר והצטרף לקבוצה."); };
+      const no=document.createElement("button"); no.type="button"; no.className="rm"; no.textContent="דחה";
+      no.onclick=()=>confirmBox("לדחות את הבקשה של "+m.name+"?", "כן, דחה", async()=>{ const r=await rpc("group_reject",{p_group:group.id,p_user:m.user_id}); afterAction(r, "הבקשה נדחתה."); });
+      li.append(ok,no); rl.appendChild(li);
+    });
+    // members
+    const ul=$("pmList"); ul.innerHTML="";
+    members.filter(m=>m.status==="active").sort((a,b)=>ORDER[a.role]-ORDER[b.role]||a.name.localeCompare(b.name,"he")).forEach(m=>{
+      const li=document.createElement("li");
+      li.innerHTML='<span class="nm">'+esc(m.name)+'<span class="reg-state">'+(m.user_id?" · יש חשבון ✓":" · בלי חשבון")+'</span></span>'+roleTag(m.role);
+      const mine = m.user_id===user.id;
+      if(!mine && (m.role!=="owner")){
         const b=document.createElement("button"); b.type="button"; b.textContent="ניהול הרשאות"; b.onclick=()=>openRole(m); li.appendChild(b);
-      }
-      if(m.registered_at && m.name!==auth.name && (m.role!=="owner" || auth.role==="owner")){
-        const rs=document.createElement("button"); rs.type="button"; rs.className="rm"; rs.textContent="אפס הרשמה";
-        rs.onclick=()=>confirmBox("לאפס את ההרשמה של "+m.name+"? הוא יצטרך להירשם מחדש במכשיר שלו.", "כן, אפס", async()=>{
-          const r=await rpc("group_reset_registration",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_target:m.name}); afterAction(r, "ההרשמה של "+m.name+" אופסה."); });
-        li.appendChild(rs);
-      }
-      if(m.role!=="owner" && m.name!==auth.name){
         const rm=document.createElement("button"); rm.type="button"; rm.className="rm"; rm.textContent="הסר";
         rm.onclick=()=>confirmBox("להסיר את "+m.name+" מהקבוצה? ההזמנות שלו נשארות בהיסטוריה.", "כן, הסר", async()=>{
-          const r=await rpc("group_remove_member",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_target:m.name}); afterAction(r, m.name+" הוסר מהקבוצה."); });
+          const r=await rpc("group_remove_member",{p_group:group.id,p_name:m.name}); afterAction(r, m.name+" הוסר מהקבוצה."); });
         li.appendChild(rm);
       }
       ul.appendChild(li);
     });
+    if(myRole()!=="owner"){
+      const li=document.createElement("li"); const lv=document.createElement("button"); lv.type="button"; lv.className="rm"; lv.textContent="עזיבת הקבוצה";
+      lv.onclick=()=>confirmBox("לעזוב את הקבוצה? ההזמנות שלך נשארות בהיסטוריה.", "כן, עזוב", async()=>{ const r=await rpc("group_leave",{p_group:group.id}); if(r.ok){ closeManage(); group=null; store.set("group",""); openGroups(false); } else pmsg(errText(r.error),true); });
+      li.appendChild(lv); ul.appendChild(li);
+    }
   }
   $("pmAdd").onclick=async()=>{ const n=$("pmAddName").value.trim(); if(!n) return;
-    const r=await rpc("group_add_member",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_name:n}); if(r.ok) $("pmAddName").value=""; afterAction(r, n+" נוסף לקבוצה."); };
+    const r=await rpc("group_add_member",{p_group:group.id,p_name:n}); if(r.ok) $("pmAddName").value=""; afterAction(r, n+" נוסף לקבוצה."); };
   $("pmAddName").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("pmAdd").click(); } });
   async function afterAction(r, okText){
-    if(!r.ok){ if(r.error==="wrong_pin"||r.error==="locked"||r.error==="not_admin"){ saveAuth(null); closePlayers(); renderAdmin(); amsg(errText(r.error)+" היכנסו שוב.",true); return; }
-      pmsg(errText(r.error),true); return; }
-    $("roleDialog").hidden=true; pmsg(okText); await load(); loadAudit();
+    if(!r.ok){ pmsg(errText(r.error),true); return; }
+    $("roleDialog").hidden=true; pmsg(okText); await refreshGroupAndLoad(); loadAudit();
   }
   function confirmBox(text, yes, onYes){
     const d=$("roleDialog"); d.hidden=false;
@@ -499,50 +600,66 @@
   }
   function openRole(m){
     const d=$("roleDialog"); d.hidden=false;
-    const isOwnerActor = auth.role==="owner";
-    let html='<h3>הרשאות: '+esc(m.name)+' '+roleTag(m.role)+'</h3>';
-    if(m.role!=="owner"){
-      html+='<div class="role-opts"><label><input type="radio" name="rl" value="admin"'+(m.role==="admin"?" checked":"")+'> מנהל: מנהל שחקנים והרשאות</label>'
-        +'<label><input type="radio" name="rl" value="member"'+(m.role==="member"?" checked":"")+'> שחקן רגיל</label></div>'
-        +'<div id="newAdminPin" hidden class="admin-row"><label for="napPin">קוד ראשון למנהל החדש (4-8 ספרות). מסרו לו אותו, והוא יוכל לשנות אותו.</label><input type="text" inputmode="numeric" id="napPin" class="pin" maxlength="8"></div>'
-        +'<div class="share"><button type="button" class="btn solid" id="rlSave">שמור</button><button type="button" class="btn" id="rlCancel">ביטול</button></div>';
-    }
-    if(isOwnerActor){
-      html+='<details><summary>העברת בעלות ל-'+esc(m.name)+'</summary><div class="admin-row" style="margin-top:8px"><p class="set-note">אחרי ההעברה '+esc(m.name)+' יהיה בעל הקבוצה, ואתם תהיו מנהלים. אי אפשר לבטל את זה בלי שהבעלים החדש יחזיר את הבעלות.</p>'
+    let html='<h3>הרשאות: '+esc(m.name)+' '+roleTag(m.role)+'</h3>'
+      +'<div class="role-opts"><label><input type="radio" name="rl" value="admin"'+(m.role==="admin"?" checked":"")+(m.user_id?"":" disabled")+'> מנהל: מנהל שחקנים, בקשות, הרשאות וסבבים</label>'
+      +'<label><input type="radio" name="rl" value="member"'+(m.role==="member"?" checked":"")+'> שחקן רגיל</label></div>'
+      +(m.user_id?'':'<p class="set-note">ל'+esc(m.name)+' אין חשבון, ולכן אי אפשר למנות אותו למנהל. כשיירשם ויצטרף מהקישור, אשרו את הבקשה וחברו אותה לשם שלו.</p>')
+      +'<div class="share"><button type="button" class="btn solid" id="rlSave">שמור</button><button type="button" class="btn" id="rlCancel">ביטול</button></div>';
+    if(myRole()==="owner" && m.user_id){
+      html+='<details><summary>העברת בעלות ל-'+esc(m.name)+'</summary><div class="admin-row" style="margin-top:8px"><p class="set-note">אחרי ההעברה '+esc(m.name)+' יהיה בעל הקבוצה, ואתם תהיו מנהלים.</p>'
         +'<label for="trConfirm">לאישור, הקלידו את השם: '+esc(m.name)+'</label><input type="text" id="trConfirm">'
-        +(m.role==="member"?'<label for="trPin">קוד ראשון לבעלים החדש (4-8 ספרות)</label><input type="text" inputmode="numeric" id="trPin" class="pin" maxlength="8">':'')
         +'<button type="button" class="btn danger" id="trGo">העבר בעלות</button></div></details>';
     }
     d.innerHTML=html; d.scrollIntoView({block:"nearest"});
-    if(m.role!=="owner"){
-      const sync=()=>{ const v=d.querySelector('input[name="rl"]:checked').value; $("newAdminPin").hidden = !(v==="admin" && m.role!=="admin"); };
-      d.querySelectorAll('input[name="rl"]').forEach(i=>i.onchange=sync); sync();
-      $("rlCancel").onclick=()=>{ d.hidden=true; };
-      $("rlSave").onclick=()=>{ const v=d.querySelector('input[name="rl"]:checked').value; if(v===m.role){ d.hidden=true; return; }
-        const pinNew = v==="admin" ? $("napPin").value.trim() : null;
-        if(v==="admin" && !/^[0-9]{4,8}$/.test(pinNew)){ pmsg(errText("bad_pin"),true); return; }
-        confirmBox(v==="admin" ? "להעניק ל"+m.name+" הרשאת מנהל?" : "לבטל ל"+m.name+" את הרשאת המנהל ולהחזיר אותו לשחקן רגיל?", "כן, אשר", async()=>{
-          const r=await rpc("group_set_role",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_target:m.name,p_role:v,p_target_pin:pinNew});
-          afterAction(r, v==="admin" ? m.name+" מונה למנהל." : m.name+" חזר להיות שחקן."); }); };
-    }
-    if(isOwnerActor) $("trGo").onclick=()=>{ const c=$("trConfirm").value.trim(), tp=$("trPin")?$("trPin").value.trim():null;
-      confirmBox("להעביר את הבעלות על קבוצת "+sport.name+" ל"+m.name+"? זו פעולה סופית.", "כן, העבר בעלות", async()=>{
-        const r=await rpc("group_transfer_owner",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_target:m.name,p_confirm:c,p_target_pin:tp});
-        if(r.ok) saveAuth({...auth, role:"admin"}); afterAction(r, "הבעלות הועברה ל"+m.name+"."); }); };
+    $("rlCancel").onclick=()=>{ d.hidden=true; };
+    $("rlSave").onclick=()=>{ const v=d.querySelector('input[name="rl"]:checked').value; if(v===m.role){ d.hidden=true; return; }
+      confirmBox(v==="admin" ? "להעניק ל"+m.name+" הרשאת מנהל?" : "לבטל ל"+m.name+" את הרשאת המנהל ולהחזיר אותו לשחקן רגיל?", "כן, אשר", async()=>{
+        const r=await rpc("group_set_role",{p_group:group.id,p_name:m.name,p_role:v});
+        afterAction(r, v==="admin" ? m.name+" מונה למנהל." : m.name+" חזר להיות שחקן."); }); };
+    if($("trGo")) $("trGo").onclick=()=>{ const c=$("trConfirm").value.trim();
+      confirmBox("להעביר את הבעלות על "+group.name+" ל"+m.name+"? זו פעולה סופית.", "כן, העבר בעלות", async()=>{
+        const r=await rpc("group_transfer_owner",{p_group:group.id,p_name:m.name,p_confirm:c}); afterAction(r, "הבעלות הועברה ל"+m.name+"."); }); };
   }
-  const ACTION_HE={set_owner:"הוגדר כבעלים",claim:"פתח את הקבוצה",set_pin:"עדכן קוד",add_member:"הוסיף שחקן",remove_member:"הסיר שחקן",make_admin:"מינה למנהל",make_member:"ביטל הרשאת מנהל",transfer_owner:"העביר בעלות",new_round:"פתח סבב חדש",register:"נרשם",unregister:"התנתק מהמכשיר",reset_registration:"איפס הרשמה"};
+  const ACTION_HE={create_group:"יצר את הקבוצה",join_request:"ביקש להצטרף",approve:"אישר הצטרפות",approve_link:"אישר וחיבר חשבון",reject:"דחה בקשה",
+    add_member:"הוסיף שחקן",remove_member:"הסיר שחקן",make_admin:"מינה למנהל",make_member:"ביטל הרשאת מנהל",transfer_owner:"העביר בעלות",
+    new_round:"פתח סבב חדש",update_group:"עדכן את הקבוצה",new_invite:"יצר קישור הצטרפות חדש",leave:"עזב",link_legacy:"חיבר חשבון",
+    set_owner:"הוגדר כבעלים",claim:"פתח את הקבוצה",set_pin:"עדכן קוד",register:"נרשם",unregister:"התנתק",reset_registration:"איפס הרשמה"};
   async function loadAudit(){
-    const {data} = await sb.from("audit_log").select("actor,action,target,at").eq("sport", sport.id).order("at",{ascending:false}).limit(40);
+    const {data} = await sb.from("audit_log").select("actor,action,target,at").eq("group_id", group.id).order("at",{ascending:false}).limit(40);
     const ul=$("auditList"); ul.innerHTML="";
     (data||[]).forEach(a=>{ const li=document.createElement("li"); const d=new Date(a.at);
       li.textContent=d.toLocaleDateString("he-IL")+" "+d.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})+" · "+a.actor+" "+(ACTION_HE[a.action]||a.action)+(a.target&&a.target!==a.actor?": "+a.target:""); ul.appendChild(li); });
     if(!ul.children.length) ul.innerHTML="<li>אין עדיין שינויים.</li>";
   }
 
-  render();
+  // ---------- boot ----------
+  async function afterSignIn(){
+    const {data} = await sb.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+    profile = data || {full_name: (user.user_metadata||{}).full_name || ""};
+    await loadGroups();
+    if(joinCode){ openJoin(); return; }
+    const saved = store.get("group");
+    const actives = groups.filter(g=>g.status==="active");
+    const pick = actives.find(g=>g.id===saved) || (actives.length===1 ? actives[0] : null);
+    if(pick) enterGroup(pick.id); else openGroups(false);
+  }
+  function signedOutUI(){
+    user=null; profile=null; groups=[]; group=null; if(channel){ sb.removeChannel(channel); channel=null; }
+    applySport(); setAuthMode(joinCode ? "up" : "in");
+    if(joinCode) say("authMsg","כדי להצטרף לקבוצה, צרו חשבון או היכנסו.");
+    showScreen("authScreen");
+  }
+
+  applySport(); render();
   if(!window.supabase){ setMsg("לא הצלחנו להתחבר. בדקו את החיבור לאינטרנט ורעננו.", true); return; }
-  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  load();
-  sb.channel("bookings-live").on("postgres_changes",{event:"*",schema:"public",table:"bookings"},()=>load()).on("postgres_changes",{event:"INSERT",schema:"public",table:"rounds"},()=>load()).on("postgres_changes",{event:"*",schema:"public",table:"rotation"},()=>load()).on("postgres_changes",{event:"*",schema:"public",table:"group_members"},()=>load()).subscribe();
-  document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true}});
+  let booted=false;
+  sb.auth.onAuthStateChange((event, session)=>{
+    if(event==="PASSWORD_RECOVERY"){ user=session.user; $("recPass").value=""; say("recMsg",""); showScreen("recoveryScreen"); return; }
+    if(event==="SIGNED_OUT"){ booted=false; signedOutUI(); return; }
+    if(session && session.user && (!booted || (user && user.id!==session.user.id))){ booted=true; user=session.user; setTimeout(afterSignIn,0); }
+    else if(session && session.user){ user=session.user; }
+    else if(!session && !booted){ signedOutUI(); }
+  });
+  document.addEventListener("visibilitychange",()=>{ if(!document.hidden && group) load(); });
 })();
