@@ -162,6 +162,9 @@ td .sub::before{content:" · "}
 .sports button[aria-pressed=true]{background:var(--court);color:var(--court-ink);border-color:var(--court)}
 .sports .sw{width:14px;height:14px;border-radius:50%;flex:none;border:2px solid rgba(255,255,255,.8);box-shadow:0 0 0 1px rgba(0,0,0,.15)}
 .rotation li.me span:first-child::after{content:" (אני)";color:var(--muted);font-weight:400}
+.join-row{display:flex;gap:8px}
+.join-row input{flex:1;min-width:0;direction:ltr;font-size:.8rem}
+.join-row button{font:inherit;font-weight:500;padding:8px 12px;border-radius:10px;border:1px solid var(--court);background:var(--court);color:var(--court-ink);cursor:pointer;white-space:nowrap}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -180,7 +183,10 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
   <div class="set-block">
     <h3>ענף ספורט</h3>
     <div class="sports" id="sportBtns" role="group" aria-label="בחירת ענף ספורט"></div>
-    <p class="set-note">משנה את הצבעים והכותרות אצלך בלבד. הנתונים והסבב משותפים לכל הקבוצה.</p>
+    <p class="set-note">לכל ענף יש הזמנות, סבב וסדר תורות משלו. רשימת השחקנים משותפת.</p>
+    <label for="sportLink">קישור לקבוצת הוואטסאפ של הענף</label>
+    <div class="join-row"><input type="text" id="sportLink" readonly><button type="button" id="copyLink">העתק</button></div>
+    <p class="set-note">מי שנכנס מהקישור הזה רואה ישר את הענף הזה.</p>
   </div>
 </aside>
 <div class="wrap">
@@ -253,6 +259,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119a"></script>
+<script src="app.js?v=20261119b"></script>
 </body>
 </html>

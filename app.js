@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261119a";
+  const APP_VERSION = "20261119b";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -30,6 +30,8 @@
     {id:"volleyball", name:"כדורעף", emoji:"🏐", color:"#9a5b0b"},
   ];
   const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} } };
+  const linkSport = new URLSearchParams(location.search).get("sport");
+  if(SPORTS.some(x=>x.id===linkSport)) store.set("sport", linkSport);
   let sport = SPORTS.find(x=>x.id===store.get("sport")) || SPORTS[0];
   let me = store.get("tennis-name") || "";
   function applySport(){
@@ -41,7 +43,7 @@
     SPORTS.forEach(sp=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", String(sp.id===sport.id));
       const sw=document.createElement("span"); sw.className="sw"; sw.style.background=sp.color;
       const l=document.createElement("span"); l.textContent=sp.emoji+" "+sp.name;
-      b.append(sw,l); b.onclick=()=>{ sport=sp; store.set("sport", sp.id); applySport(); render(); }; box.appendChild(b); });
+      b.append(sw,l); b.onclick=()=>{ if(sport.id===sp.id) return; sport=sp; store.set("sport", sp.id); editingId=null; draft=null; rows=[]; rotation=[]; roundStarts=[]; ready=false; applySport(); render(); if(sb) load(); }; box.appendChild(b); });
   }
   function openSettings(open){
     $("settings").hidden=!open; $("scrim").hidden=!open; $("settingsBtn").setAttribute("aria-expanded", String(open));
@@ -81,13 +83,16 @@
   function setMsg(t, err){ const m=$("msg"); m.textContent=t; m.className="msg"+(err?" err":""); }
 
   async function load(){
-    const [b,p,r] = await Promise.all([
-      sb.from("bookings").select("id,name,date,court,notes,created_at,status").order("date",{ascending:false}).limit(2000),
-      sb.from("players").select("name,sort_order").order("sort_order"),
-      sb.from("rounds").select("started_at").order("started_at",{ascending:false}).limit(2)
+    const loadedFor = sport.id;
+    const [b,p,r,ro] = await Promise.all([
+      sb.from("bookings").select("id,name,date,court,notes,created_at,status").eq("sport", sport.id).order("date",{ascending:false}).limit(2000),
+      sb.from("players").select("name"),
+      sb.from("rounds").select("started_at").eq("sport", sport.id).order("started_at",{ascending:false}).limit(2),
+      sb.from("rotation").select("name,sort_order").eq("sport", sport.id).order("sort_order")
     ]);
+    if(loadedFor!==sport.id) return; // the sport changed while loading
     if(b.error){ setMsg("לא הצלחנו לטעון את ההזמנות. בדקו את החיבור ונסו לרענן.", true); return; }
-    rows = b.data || []; players = (p.data||[]).map(x=>x.name); rotation = (p.data||[]).filter(x=>x.sort_order>0).sort((a,b)=>a.sort_order-b.sort_order).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
+    rows = b.data || []; players = (p.data||[]).map(x=>x.name); rotation = (ro.data||[]).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
     if(!ready){ ready=true; $("submit").disabled=false; if($("msg").textContent==="מתחבר לרשימה המשותפת…") setMsg(""); }
     render();
   }
@@ -228,8 +233,9 @@
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
     if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
     if(notYet.length){ txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; }); }
-    txt+= next ? "\nמי מזמין הבא?\n👉 "+next+(waitingNewDate.has(next)?" (ההזמנה בוטלה – מתאמים תאריך חדש)":"") : "\n🎉 כולם שילמו בסבב! פותחים סבב חדש.";
+    txt+= next ? "\nמי מזמין הבא?\n👉 "+next+(waitingNewDate.has(next)?" (ההזמנה בוטלה – מתאמים תאריך חדש)":"") : (rotation.length ? "\n🎉 כולם שילמו בסבב! פותחים סבב חדש." : "\nמי מזמין ראשון? הסבב מתחיל בהזמנה הראשונה.");
     txt+="\n\nלהזמנת מגרש באפליקציית לזוז:\nhttps://lazuz.co.il/app/";
+    $("sportLink").value = location.origin+location.pathname.replace(/index\.html$/,"")+"?sport="+sport.id;
     $("shareText").value=txt.trim();
     $("waLink").href="https://wa.me/?text="+encodeURIComponent(txt.trim());
   }
@@ -238,7 +244,7 @@
   function renderRound(paid, next, waiting){
     const box=$("nextUp"), list=$("rotation");
     list.innerHTML="";
-    if(!rotation.length){ box.textContent= ready ? "עדיין אין שחקנים בסבב." : "טוען…"; return; }
+    if(!rotation.length){ box.textContent= ready ? "עדיין אין סבב ב"+sport.name+". מי שירשום את ההזמנה הראשונה יפתח אותו, וכל מזמין חדש יצטרף לסוף התור." : "טוען…"; box.classList.remove("done"); return; }
     box.innerHTML="";
     if(next){ const l=document.createElement("span"); l.className="next-label"; l.textContent="הבא בתור להזמין"; const n=document.createElement("strong"); n.className="next-name"; n.textContent=next; box.append(l,n);
       if(waiting.has(next)){ const w=document.createElement("span"); w.className="next-label"; w.textContent="ההזמנה בוטלה – מתאמים תאריך חדש"; box.appendChild(w); } box.classList.remove("done"); }
@@ -262,6 +268,11 @@
     if(items.length>4){ const top=h.getBoundingClientRect().top; h.style.maxHeight=Math.ceil(items[3].getBoundingClientRect().bottom-top+3)+"px"; }
   }
   window.addEventListener("resize", fitHistory);
+  $("copyLink").onclick=()=>{
+    const i=$("sportLink"), b=$("copyLink");
+    const done=()=>{ b.textContent="הועתק ✓"; setTimeout(()=>b.textContent="העתק",2000); };
+    try{ navigator.clipboard.writeText(i.value).then(done,()=>{ i.select(); }); }catch(e){ i.select(); }
+  };
   $("copyBtn").onclick=()=>{
     const ta=$("shareText");
     const done=()=>{ $("copyBtn").textContent="הועתק ✓"; setTimeout(()=>$("copyBtn").textContent="העתק טקסט",2000); };
@@ -274,7 +285,7 @@
   $("newRoundYes").onclick=async()=>{
     if(!sb) return;
     $("newRoundYes").disabled=true;
-    const {error} = await sb.from("rounds").insert({started_at:new Date().toISOString()});
+    const {error} = await sb.from("rounds").insert({started_at:new Date().toISOString(), sport: sport.id});
     $("newRoundYes").disabled=false;
     $("newRoundConfirm").hidden=true; $("newRoundBtn").hidden=false;
     if(error){ $("roundMsg").textContent="לא הצלחנו להתחיל סבב חדש. נסו שוב."; return; }
@@ -292,7 +303,7 @@
     if(!courtName){ setMsg("כתבו את שם המגרש", true); $("otherCourt").focus(); return; }
     if(!sb) return;
     $("submit").disabled=true;
-    const {error} = await sb.from("bookings").insert({name, date, court: courtName, notes});
+    const {error} = await sb.from("bookings").insert({name, date, court: courtName, notes, sport: sport.id});
     if(error) setMsg("ההזמנה לא נשמרה. נסו שוב.", true);
     else {
       try{ localStorage.setItem("tennis-name", name); }catch(_){}
@@ -306,6 +317,6 @@
   if(!window.supabase){ setMsg("לא הצלחנו להתחבר. בדקו את החיבור לאינטרנט ורעננו.", true); return; }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   load();
-  sb.channel("bookings-live").on("postgres_changes",{event:"*",schema:"public",table:"bookings"},()=>load()).on("postgres_changes",{event:"INSERT",schema:"public",table:"rounds"},()=>load()).subscribe();
+  sb.channel("bookings-live").on("postgres_changes",{event:"*",schema:"public",table:"bookings"},()=>load()).on("postgres_changes",{event:"INSERT",schema:"public",table:"rounds"},()=>load()).on("postgres_changes",{event:"*",schema:"public",table:"rotation"},()=>load()).subscribe();
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 })();
