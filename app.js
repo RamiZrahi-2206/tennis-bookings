@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261120a";
+  const APP_VERSION = "20261120b";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -77,9 +77,9 @@
   function applySport(){
     sport = sportOf(group ? group.sport : "tennis");
     document.documentElement.setAttribute("data-sport", sport.id);
-    const t = group ? group.name : "הזמנות מגרשים";
+    const t = group ? group.name : "MatchPoint";
     $("sportTitle").textContent = group ? group.name+" · "+sport.emoji+" "+sport.name : t;
-    $("miniTitle").textContent = t; document.title = group ? group.name+" – הזמנות מגרשים" : "הזמנות מגרשים";
+    $("miniTitle").textContent = t; document.title = group ? group.name+" · MatchPoint" : "MatchPoint";
     const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", sport.color);
   }
 

@@ -8,13 +8,13 @@
 <link rel="manifest" href="manifest.webmanifest">
 <meta http-equiv="Cache-Control" content="no-cache">
 <meta name="theme-color" content="#1f6b45">
-<meta name="apple-mobile-web-app-title" content="מגרשי טניס">
+<meta name="apple-mobile-web-app-title" content="MatchPoint">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta property="og:image" content="https://ramizrahi-2206.github.io/tennis-bookings/icons/icon-512.png">
-<meta property="og:title" content="הזמנות מגרשי טניס">
-<meta property="og:description" content="מי הזמין אחרון את המגרש – יבנה, רחובות, ראשון לציון, מזכרת בתיה">
+<meta property="og:image" content="https://ramizrahi-2206.github.io/tennis-bookings/icons/logo-512.png">
+<meta property="og:title" content="MatchPoint">
+<meta property="og:description" content="הזמנת מגרשים, ניהול קבוצות ותור הזמנות">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
-<title>הזמנות מגרשי טניס</title>
+<title>MatchPoint</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700&family=Secular+One&display=swap">
 <style>
@@ -234,6 +234,7 @@ td .sub::before{content:" · "}
 .role-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:.92rem}
 .role-list li{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;background:var(--soft)}
 .legacy{padding:12px;border-radius:12px;border:2px dashed var(--court);display:flex;flex-direction:column;gap:8px}
+.reg-logo.brand{border-radius:22px;align-self:center;box-shadow:0 6px 24px rgba(1,23,54,.35)}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -266,7 +267,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 <!-- full-screen screens: sign in / groups / create / join / profile / security / new password -->
 <div class="screen" id="authScreen" hidden>
   <div class="reg-card">
-    <img src="icons/icon-192.png" alt="" width="64" height="64" class="reg-logo">
+    <img src="icons/logo-512.png" alt="MatchPoint – הזמנת מגרשים, ניהול קבוצות, משחקים" width="148" height="148" class="reg-logo brand">
     <h2 id="authTitle">כניסה</h2>
     <div class="seg" role="tablist" aria-label="כניסה או הרשמה">
       <button type="button" role="tab" id="authTabIn" aria-selected="true">כניסה</button>
@@ -462,6 +463,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261120a"></script>
+<script src="app.js?v=20261120b"></script>
 </body>
 </html>
