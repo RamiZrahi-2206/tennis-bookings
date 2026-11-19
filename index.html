@@ -197,6 +197,22 @@ td .sub::before{content:" · "}
 .me-name{margin:0;font-family:var(--font-display);font-size:1.4rem;line-height:1.2}
 .reg-state{font-weight:400;font-size:.78rem;color:var(--muted)}
 .back-btn{align-self:flex-start;font-size:.9rem;padding:7px 12px}
+.col{display:contents}
+.mini-head{margin:0;font-family:var(--font-display);font-size:1.15rem;color:var(--court);padding-inline-start:52px;min-height:44px;display:flex;align-items:center}
+.go-share{align-self:flex-start}
+.tabbar{position:fixed;z-index:25;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 6px) max(8px,env(safe-area-inset-left,0px));box-shadow:0 -4px 16px rgba(0,0,0,.06)}
+.tabbar button{font:inherit;font-size:.75rem;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:0;border-radius:12px;background:none;color:var(--muted);cursor:pointer}
+.tabbar svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabbar button[aria-current="page"]{color:var(--court);background:var(--soft)}
+@media (max-width:899px){
+  body{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+  .wrap [data-tab]:not(.on){display:none!important}
+}
+@media (min-width:900px){
+  .tabbar,.mini-head,.go-share{display:none}
+  .wrap{max-width:1080px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+  .col{display:flex;flex-direction:column;gap:20px;min-width:0}
+}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -263,30 +279,23 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
   <p class="msg" id="pmMsg" role="status"></p>
 </div>
 <div class="wrap">
-  <header aria-live="polite">
+<div class="col col-a">
+  <header aria-live="polite" data-tab="round">
     <h1><span id="sportTitle">הזמנות מגרשי טניס</span> · יבנה · רחובות · ראשון לציון · מזכרת בתיה</h1>
     <p class="eyebrow">הזמין אחרון</p>
     <p class="last-name" id="lastName">טוען…</p>
     <div class="last-meta" id="lastMeta"><span class="ago">ההזמנה האחרונה תופיע כאן</span></div>
   </header>
+  <p class="mini-head" id="miniTitle" data-tab="add history share">הזמנות מגרשי טניס</p>
 
-  <section aria-labelledby="roundTitle">
+  <section aria-labelledby="roundTitle" data-tab="round">
     <h2 id="roundTitle">הסבב הנוכחי</h2>
     <div class="next-up" id="nextUp" role="status">טוען…</div>
     <ol class="rotation" id="rotation" aria-label="סדר ההזמנות בסבב"></ol>
-    <div class="round">
-      <p class="round-hint" id="allPaidHint" hidden>כולם שילמו בסבב הזה. מנהל הקבוצה יכול לפתוח סבב חדש.</p>
-      <button type="button" class="round-btn" id="newRoundBtn">🔄 סבב חדש</button>
-      <p class="round-msg" id="roundAdminNote">רק מנהל הקבוצה יכול לפתוח סבב חדש (☰ ← ניהול הקבוצה).</p>
-      <div id="newRoundConfirm" hidden class="round-confirm">
-        <p>כל השחקנים יחזרו ל"טרם שילמו", והתור יתחיל מחדש מהראשון ברשימה. להתחיל סבב חדש?</p>
-        <div class="share"><button type="button" class="round-yes" id="newRoundYes">כן, התחל סבב חדש</button><button type="button" id="newRoundCancel">ביטול</button></div>
-      </div>
-      <p class="round-msg" id="roundMsg" role="status"></p>
-    </div>
+    <button type="button" class="btn solid go-share" id="goShare">💬 שליחת עדכון לקבוצה</button>
   </section>
 
-  <section aria-labelledby="addTitle">
+  <section aria-labelledby="addTitle" data-tab="add">
     <h2 id="addTitle">רישום הזמנה</h2>
     <form id="form" novalidate>
       <div style="display:flex;flex-direction:column;gap:12px">
@@ -306,7 +315,9 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     </form>
   </section>
 
-  <section aria-labelledby="sumTitle">
+</div>
+<div class="col col-b">
+  <section aria-labelledby="sumTitle" data-tab="history">
     <h2 id="sumTitle">מתי כל אחד הזמין לאחרונה</h2>
     <div style="overflow-x:auto"><table>
       <thead><tr><th>שחקן</th><th>הזמנה אחרונה</th><th>מגרש</th><th style="text-align:end">סה״כ</th></tr></thead>
@@ -314,14 +325,14 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     </table></div>
   </section>
 
-  <section aria-labelledby="listTitle">
+  <section aria-labelledby="listTitle" data-tab="history">
     <h2 id="listTitle">היסטוריית הזמנות</h2>
     <div class="chips" role="group" aria-label="סינון לפי מגרש" id="filterBtns"></div>
     <div class="list" id="history" tabindex="0" aria-label="היסטוריית הזמנות, אפשר לגלול"><p class="empty">ההזמנות של הקבוצה יופיעו כאן, מהחדשה לישנה.</p></div>
     <p class="scroll-hint" id="scrollHint" hidden>גללו ברשימה כדי לראות הזמנות קודמות</p>
   </section>
 
-  <section aria-labelledby="shareTitle">
+  <section aria-labelledby="shareTitle" data-tab="share">
     <h2 id="shareTitle">שליחה לקבוצה בוואטסאפ</h2>
     <p style="margin:0;color:var(--muted);font-size:.9rem">הודעה מוכנה: מי הזמין אחרון, מי שילם בסבב, מי טרם שילם ומי הבא בתור. אם הכפתור הירוק לא נפתח, העתיקו את הטקסט והדביקו בקבוצה.</p>
     <textarea class="copy" id="shareText" readonly aria-label="טקסט לשליחה"></textarea>
@@ -329,10 +340,27 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
       <a id="waLink" href="https://wa.me/" target="_blank" rel="noopener">פתח בוואטסאפ</a>
       <button type="button" id="copyBtn">העתק טקסט</button>
     </div>
+    <div class="round">
+      <p class="round-hint" id="allPaidHint" hidden>כולם שילמו בסבב הזה. מנהל הקבוצה יכול לפתוח סבב חדש.</p>
+      <button type="button" class="round-btn" id="newRoundBtn">🔄 סבב חדש</button>
+      <p class="round-msg" id="roundAdminNote">רק מנהל הקבוצה יכול לפתוח סבב חדש (☰ ← ניהול הקבוצה).</p>
+      <div id="newRoundConfirm" hidden class="round-confirm">
+        <p>כל השחקנים יחזרו ל"טרם שילמו", והתור יתחיל מחדש מהראשון ברשימה. להתחיל סבב חדש?</p>
+        <div class="share"><button type="button" class="round-yes" id="newRoundYes">כן, התחל סבב חדש</button><button type="button" id="newRoundCancel">ביטול</button></div>
+      </div>
+      <p class="round-msg" id="roundMsg" role="status"></p>
+    </div>
   </section>
 </div>
+</div>
+<nav class="tabbar" id="tabbar" aria-label="ניווט">
+  <button type="button" data-go="round"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M6 6.5c3 2.5 3 8.5 0 11M18 6.5c-3 2.5-3 8.5 0 11"/></svg><span>סבב</span></button>
+  <button type="button" data-go="add"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M12 10v6M9 13h6"/></svg><span>הזמנה</span></button>
+  <button type="button" data-go="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>היסטוריה</span></button>
+  <button type="button" data-go="share"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5l1.3-3.6A8 8 0 1 1 8.2 19z"/></svg><span>וואטסאפ</span></button>
+</nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119g"></script>
+<script src="app.js?v=20261119h"></script>
 </body>
 </html>

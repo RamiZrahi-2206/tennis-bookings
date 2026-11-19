@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261119g";
+  const APP_VERSION = "20261119h";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -37,7 +37,7 @@
   function applySport(){
     document.documentElement.setAttribute("data-sport", sport.id);
     const t="הזמנות מגרשי "+sport.name;
-    $("sportTitle").textContent=t; document.title=t;
+    $("sportTitle").textContent=t; document.title=t; $("miniTitle").textContent=t;
     const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", sport.color);
     const back = prevSport && prevSport.id!==sport.id ? prevSport : null;
     ["sportBack","regBack"].forEach(id=>{ const b=$(id); if(!b) return; b.hidden=!back; if(back) b.textContent="→ חזרה ל"+back.name; });
@@ -72,6 +72,20 @@
   $("scrim").onclick=()=>openSettings(false);
   document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("settings").hidden) openSettings(false); });
   applySport();
+
+  // ---- tabs (phones): round / add / history / share. Wide screens show everything in two columns. ----
+  const TABS=["round","add","history","share"];
+  let tab = TABS.includes(store.get("tab")) ? store.get("tab") : "round";
+  function setTab(t, keepScroll){
+    tab=t; store.set("tab", t);
+    document.querySelectorAll(".wrap [data-tab]").forEach(el=>el.classList.toggle("on", el.dataset.tab.split(" ").includes(t)));
+    document.querySelectorAll("#tabbar button").forEach(b=>{ if(b.dataset.go===t) b.setAttribute("aria-current","page"); else b.removeAttribute("aria-current"); });
+    if(!keepScroll) window.scrollTo(0,0);
+    if(t==="history" && typeof fitHistory==="function") fitHistory();
+  }
+  document.querySelectorAll("#tabbar button").forEach(b=>b.onclick=()=>setTab(b.dataset.go));
+  $("goShare").onclick=()=>setTab("share");
+  setTab(tab, true);
   let court = COURTS[0], filter = "הכל", rows = [], players = [], members = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false, editingId = null, draft = null;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
@@ -324,6 +338,7 @@
     else {
       $("notes").value=""; setMsg("נרשם: "+name+" · "+courtName+" · "+dmy(date));
       await load();
+      setTab("round");
     }
     $("submit").disabled=false;
   });
