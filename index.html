@@ -188,6 +188,13 @@ td .sub::before{content:" · "}
 .role-opts label{display:flex;gap:8px;align-items:center;font-size:.95rem;color:var(--fg)}
 .audit summary{cursor:pointer;color:var(--muted);font-size:.9rem}
 .audit ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted)}
+.reg{position:fixed;inset:0;z-index:70;background:var(--bg);overflow-y:auto;display:flex;justify-content:center;align-items:flex-start;padding:calc(env(safe-area-inset-top,0px) + 40px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(16px,env(safe-area-inset-left,0px))}
+.reg-card{width:100%;max-width:420px;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:24px 20px;display:flex;flex-direction:column;gap:12px}
+.reg-card h2{font-size:1.6rem;text-wrap:balance}
+.reg-logo{border-radius:16px;align-self:flex-start}
+.set-label{font-size:.85rem;color:var(--muted);font-weight:500}
+.me-name{margin:0;font-family:var(--font-display);font-size:1.4rem;line-height:1.2}
+.reg-state{font-weight:400;font-size:.78rem;color:var(--muted)}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -199,10 +206,13 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
   <div class="settings-head"><h2 id="setTitle">הגדרות</h2><button type="button" class="x" id="settingsClose" aria-label="סגירת ההגדרות">✕</button></div>
   <div class="set-block">
     <h3>פרטי המשתמש</h3>
-    <label for="meName">השם שלי</label>
-    <select id="meName"><option value="">בחרו את השם שלכם…</option></select>
-    <p class="set-note">השם ייבחר אוטומטית ברישום הזמנה, ויסומן "(אני)" ברשימת הסבב.</p>
+    <span class="set-label">השם שלי</span>
+    <p class="me-name" id="meName">…</p>
+    <p class="set-note">השם נקבע בהרשמה. הוא נבחר אוטומטית ב"מי הזמין" ומסומן "(אני)" ברשימת הסבב.</p>
     <p class="set-note" id="myRole" hidden></p>
+    <button type="button" class="btn" id="regOut" hidden>התנתקות מהמכשיר</button>
+    <div id="regOutConfirm" hidden class="admin-row"><p class="set-note">להתנתק? כדי להמשיך תצטרכו להירשם שוב, במכשיר הזה או באחר.</p>
+      <div class="share"><button type="button" class="btn danger" id="regOutYes">כן, התנתק</button><button type="button" class="btn" id="regOutNo">ביטול</button></div></div>
   </div>
   <div class="set-block">
     <h3>ענף ספורט</h3>
@@ -218,6 +228,27 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <p class="msg" id="adminMsg" role="status"></p>
   </div>
 </aside>
+<div class="reg" id="regScreen" hidden role="dialog" aria-modal="true" aria-labelledby="regTitle">
+  <div class="reg-card">
+    <img src="icons/icon-192.png" alt="" width="64" height="64" class="reg-logo">
+    <h2 id="regTitle">ברוכים הבאים</h2>
+    <div id="regJoin" class="admin-row">
+      <p class="set-note">הרשמה חד-פעמית: כתבו את השם המלא שלכם כפי שמנהל הקבוצה רשם אותו. מהרגע הזה המכשיר יזכור אתכם.</p>
+      <label for="regName">השם המלא שלכם</label>
+      <input type="text" id="regName" maxlength="40" autocomplete="name" placeholder="למשל: שי יוסקו">
+      <button type="button" class="btn solid" id="regGo">הרשמה</button>
+    </div>
+    <div id="regClaim" class="admin-row" hidden>
+      <p class="set-note">לקבוצה הזו אין עדיין בעלים. מי שפותח אותה הופך לבעל הקבוצה, מוסיף שחקנים וממנה מנהלים.</p>
+      <label for="regClaimName">השם המלא שלכם</label><input type="text" id="regClaimName" maxlength="40" autocomplete="name">
+      <label for="regClaimPin">קוד אישי לבעל הקבוצה (4-8 ספרות)</label><input type="password" inputmode="numeric" id="regClaimPin" class="pin" maxlength="8" autocomplete="new-password">
+      <button type="button" class="btn solid" id="regClaimGo">פתח את הקבוצה</button>
+    </div>
+    <p class="msg" id="regMsg" role="status"></p>
+    <label for="regSport" class="set-note">ענף אחר?</label>
+    <select id="regSport"><option value="tennis">🎾 טניס</option><option value="padel">🎾 פאדל</option><option value="football">⚽ כדורגל</option><option value="basketball">🏀 כדורסל</option><option value="pickleball">🏓 פיקלבול</option><option value="squash">🎾 סקווש</option><option value="volleyball">🏐 כדורעף</option></select>
+  </div>
+</div>
 <div class="scrim" id="modalScrim" hidden></div>
 <div class="modal" id="playersModal" hidden role="dialog" aria-modal="true" aria-labelledby="pmTitle">
   <div class="settings-head"><h2 id="pmTitle">ניהול שחקנים</h2><button type="button" class="x" id="pmClose" aria-label="סגירה">✕</button></div>
@@ -298,6 +329,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119d"></script>
+<script src="app.js?v=20261119e"></script>
 </body>
 </html>
