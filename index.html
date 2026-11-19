@@ -196,6 +196,7 @@ td .sub::before{content:" · "}
 .set-label{font-size:.85rem;color:var(--muted);font-weight:500}
 .me-name{margin:0;font-family:var(--font-display);font-size:1.4rem;line-height:1.2}
 .reg-state{font-weight:400;font-size:.78rem;color:var(--muted)}
+.back-btn{align-self:flex-start;font-size:.9rem;padding:7px 12px}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -217,6 +218,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
   </div>
   <div class="set-block">
     <h3>ענף ספורט</h3>
+    <button type="button" class="btn back-btn" id="sportBack" hidden></button>
     <div class="sports" id="sportBtns" role="group" aria-label="בחירת ענף ספורט"></div>
     <p class="set-note">לכל ענף יש הזמנות, סבב וסדר תורות משלו. רשימת השחקנים משותפת.</p>
     <label for="sportLink">קישור לקבוצת הוואטסאפ של הענף</label>
@@ -231,6 +233,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </aside>
 <div class="reg" id="regScreen" hidden role="dialog" aria-modal="true" aria-labelledby="regTitle">
   <div class="reg-card">
+    <button type="button" class="btn back-btn" id="regBack" hidden></button>
     <img src="icons/icon-192.png" alt="" width="64" height="64" class="reg-logo">
     <h2 id="regTitle">ברוכים הבאים</h2>
     <div id="regJoin" class="admin-row">
@@ -330,6 +333,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119f"></script>
+<script src="app.js?v=20261119g"></script>
 </body>
 </html>

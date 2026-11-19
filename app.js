@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261119f";
+  const APP_VERSION = "20261119g";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -39,17 +39,30 @@
     const t="הזמנות מגרשי "+sport.name;
     $("sportTitle").textContent=t; document.title=t;
     const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", sport.color);
+    const back = prevSport && prevSport.id!==sport.id ? prevSport : null;
+    ["sportBack","regBack"].forEach(id=>{ const b=$(id); if(!b) return; b.hidden=!back; if(back) b.textContent="→ חזרה ל"+back.name; });
     const box=$("sportBtns"); box.innerHTML="";
     SPORTS.forEach(sp=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", String(sp.id===sport.id));
       const sw=document.createElement("span"); sw.className="sw"; sw.style.background=sp.color;
       const l=document.createElement("span"); l.textContent=sp.emoji+" "+sp.name;
       b.append(sw,l); b.onclick=()=>switchSport(sp); box.appendChild(b); });
   }
-  function switchSport(sp){
-    if(sport.id===sp.id) return; sport=sp; store.set("sport", sp.id);
+  // the sport we came from, so the user can go back to it (also with the phone's back gesture)
+  let prevSport = SPORTS.find(x=>x.id===store.get("prevSport")) || null;
+  function switchSport(sp, fromHistory){
+    if(sport.id===sp.id) return;
+    prevSport = sport; store.set("prevSport", sport.id);
+    if(!fromHistory){ try{ history.pushState({sport:sp.id}, "", location.pathname+"?sport="+sp.id); }catch(e){} }
+    sport=sp; store.set("sport", sp.id);
     editingId=null; draft=null; rows=[]; members=[]; players=[]; rotation=[]; roundStarts=[]; ready=false;
     loadAuth(); loadReg(); $("regScreen").hidden=true; applySport(); render(); if(sb) load();
   }
+  function goBack(){ if(prevSport) switchSport(prevSport); }
+  window.addEventListener("popstate", e=>{
+    const id = (e.state && e.state.sport) || new URLSearchParams(location.search).get("sport");
+    const sp = SPORTS.find(x=>x.id===id); if(sp) switchSport(sp, true);
+  });
+  try{ history.replaceState({sport:sport.id}, "", location.pathname+"?sport="+sport.id); }catch(e){}
   function openSettings(open){
     $("settings").hidden=!open; $("scrim").hidden=!open; $("settingsBtn").setAttribute("aria-expanded", String(open));
     if(open) $("settingsClose").focus(); else $("settingsBtn").focus();
@@ -417,6 +430,7 @@
   $("regClaimGo").onclick=async()=>{ const n=$("regClaimName").value.trim(), pin=$("regClaimPin").value.trim();
     const r=await rpc("group_claim",{p_sport:sport.id,p_name:n,p_pin:pin}); if(!r.ok){ rmsg(errText(r.error),true); return; }
     saveReg({name:r.name, token:r.token}); saveAuth({name:r.name,pin,role:"owner"}); $("regScreen").hidden=true; await load(); };
+  $("regBack").onclick=goBack; $("sportBack").onclick=()=>{ goBack(); };
   $("regSport").onchange=e=>{ const sp=SPORTS.find(x=>x.id===e.target.value); if(sp && sp.id!==sport.id) switchSport(sp); };
   $("regOut").onclick=()=>{ $("regOutConfirm").hidden=false; $("regOut").hidden=true; };
   $("regOutNo").onclick=()=>{ $("regOutConfirm").hidden=true; $("regOut").hidden=false; };
