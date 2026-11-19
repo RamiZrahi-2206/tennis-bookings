@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261117a";
+  const APP_VERSION = "20261119a";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -18,6 +18,41 @@
   const COURTS = ["יבנה","רחובות","ראשון לציון","מזכרת בתיה"];
   const OTHER = "אחר"; // any court outside the three; its name is typed in
   const $ = id => document.getElementById(id);
+
+  // ---- settings: who I am + sport theme (saved on this device only) ----
+  const SPORTS = [
+    {id:"tennis", name:"טניס", emoji:"🎾", color:"#1f6b45"},
+    {id:"padel", name:"פאדל", emoji:"🎾", color:"#1d4f91"},
+    {id:"football", name:"כדורגל", emoji:"⚽", color:"#166534"},
+    {id:"basketball", name:"כדורסל", emoji:"🏀", color:"#b4531c"},
+    {id:"pickleball", name:"פיקלבול", emoji:"🏓", color:"#0f766e"},
+    {id:"squash", name:"סקווש", emoji:"🎾", color:"#7f1d3a"},
+    {id:"volleyball", name:"כדורעף", emoji:"🏐", color:"#9a5b0b"},
+  ];
+  const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} } };
+  let sport = SPORTS.find(x=>x.id===store.get("sport")) || SPORTS[0];
+  let me = store.get("tennis-name") || "";
+  function applySport(){
+    document.documentElement.setAttribute("data-sport", sport.id);
+    const t="הזמנות מגרשי "+sport.name;
+    $("sportTitle").textContent=t; document.title=t;
+    const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", sport.color);
+    const box=$("sportBtns"); box.innerHTML="";
+    SPORTS.forEach(sp=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", String(sp.id===sport.id));
+      const sw=document.createElement("span"); sw.className="sw"; sw.style.background=sp.color;
+      const l=document.createElement("span"); l.textContent=sp.emoji+" "+sp.name;
+      b.append(sw,l); b.onclick=()=>{ sport=sp; store.set("sport", sp.id); applySport(); render(); }; box.appendChild(b); });
+  }
+  function openSettings(open){
+    $("settings").hidden=!open; $("scrim").hidden=!open; $("settingsBtn").setAttribute("aria-expanded", String(open));
+    if(open) $("settingsClose").focus(); else $("settingsBtn").focus();
+  }
+  $("settingsBtn").onclick=()=>openSettings(true);
+  $("settingsClose").onclick=()=>openSettings(false);
+  $("scrim").onclick=()=>openSettings(false);
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("settings").hidden) openSettings(false); });
+  $("meName").onchange=e=>{ me=e.target.value; store.set("tennis-name", me); if(me && players.includes(me)) $("name").value=me; render(); };
+  applySport();
   let court = COURTS[0], filter = "הכל", rows = [], players = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false, editingId = null, draft = null;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
@@ -157,6 +192,10 @@
     sel.innerHTML='<option value="">בחרו שם…</option>';
     players.slice().sort((a,b)=>a.localeCompare(b,"he")).forEach(n=>{const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o);});
     if(players.includes(keep)) sel.value=keep;
+    const meSel=$("meName");
+    meSel.innerHTML='<option value="">בחרו את השם שלכם…</option>';
+    players.slice().sort((a,b)=>a.localeCompare(b,"he")).forEach(n=>{const o=document.createElement("option"); o.value=n; o.textContent=n; meSel.appendChild(o);});
+    if(players.includes(me)) meSel.value=me;
     // never booked first, then whoever booked longest ago
     names.sort((a,b)=>{ const A=stats[a], B=stats[b]; if(!A&&!B) return 0; if(!A) return -1; if(!B) return 1; return byNewest(B.last,A.last); });
     const tb=$("sumBody"); tb.innerHTML="";
@@ -185,7 +224,7 @@
     allPaid = rotation.length>0 && !next;
     renderRound(paid, next, waitingNewDate);
     $("allPaidHint").hidden = !allPaid;
-    let txt="🎾 מי הזמין אחרון\n";
+    let txt=sport.emoji+" מי הזמין אחרון\n";
     txt+= last ? last.name+" – "+last.court+(last.notes?" ("+last.notes+")":"")+", "+dmy(last.date)+"\n" : "עדיין אין הזמנות.\n";
     if(paid.length){ txt+="\n✅ שילמו בסבב:\n"; paid.forEach(n=>{ txt+="• "+n+"\n"; }); }
     if(notYet.length){ txt+="\n⏳ טרם שילמו בסבב:\n"; notYet.forEach(n=>{ txt+="• "+n+"\n"; }); }
@@ -210,6 +249,7 @@
       if(paid.includes(n)){ st.textContent="שילם ✓"; li.className="paid"; }
       else if(n===next){ st.textContent= waiting.has(n) ? "ממתין לתאריך חדש" : "הבא בתור"; li.className="next"; }
       else { st.textContent="ממתין"; }
+      if(n===me) li.classList.add("me");
       li.append(nm,st); list.appendChild(li);
     });
   }

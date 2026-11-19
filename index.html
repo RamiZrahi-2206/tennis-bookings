@@ -31,6 +31,25 @@
 :root[data-theme="dark"]{
   --bg:#0f1712; --surface:#17221b; --fg:#e6efe8; --muted:#97a99c; --line:#2a3a30;
   --court:#2f8a5c; --court-ink:#ffffff; --ball:#d4ec5c; --ball-ink:#1b2a0c; --danger:#ff8a80; --soft:#1d2b22; color-scheme:dark}
+/* sport themes: tennis uses the base tokens above; every other sport overrides them (light and dark) */
+:root[data-sport="padel"]{--bg:#edf3fa;--surface:#ffffff;--fg:#0f1f36;--muted:#52647c;--line:#cbd9ea;--court:#1d4f91;--court-ink:#ffffff;--ball:#8fd0fa;--ball-ink:#0b2440;--soft:#dde8f5}
+:root[data-sport="football"]{--bg:#eef5ee;--surface:#ffffff;--fg:#0f2416;--muted:#506656;--line:#c9dccb;--court:#166534;--court-ink:#ffffff;--ball:#fde047;--ball-ink:#3a2f00;--soft:#dcebdd}
+:root[data-sport="basketball"]{--bg:#f8f1ea;--surface:#ffffff;--fg:#2b1608;--muted:#7a5f4c;--line:#e6d3c2;--court:#b4531c;--court-ink:#ffffff;--ball:#fbbf77;--ball-ink:#3d1a05;--soft:#f1e3d6}
+:root[data-sport="pickleball"]{--bg:#edf6f5;--surface:#ffffff;--fg:#0d2523;--muted:#4e6966;--line:#cbe0dd;--court:#0f766e;--court-ink:#ffffff;--ball:#d9f450;--ball-ink:#1f2a05;--soft:#ddeeec}
+:root[data-sport="squash"]{--bg:#f8eef1;--surface:#ffffff;--fg:#2a0d16;--muted:#7a5560;--line:#e5cdd5;--court:#7f1d3a;--court-ink:#ffffff;--ball:#f6c1cf;--ball-ink:#3d0a19;--soft:#f0dee4}
+:root[data-sport="volleyball"]{--bg:#f8f4ea;--surface:#ffffff;--fg:#2a2210;--muted:#78694a;--line:#e3d8bf;--court:#9a5b0b;--court-ink:#ffffff;--ball:#fde68a;--ball-ink:#422006;--soft:#efe7d4}
+@media (prefers-color-scheme: dark){:root[data-sport="padel"]:not([data-theme="light"]){--bg:#0f141a;--surface:#171e26;--fg:#e7eaef;--muted:#96a1b0;--line:#29323d;--soft:#1e252f;--court:#295ea3;--court-ink:#ffffff;--ball:#8fd0fa;--ball-ink:#0b2440;color-scheme:dark}}
+:root[data-theme="dark"][data-sport="padel"]{--bg:#0f141a;--surface:#171e26;--fg:#e7eaef;--muted:#96a1b0;--line:#29323d;--soft:#1e252f;--court:#295ea3;--court-ink:#ffffff;--ball:#8fd0fa;--ball-ink:#0b2440;color-scheme:dark}
+@media (prefers-color-scheme: dark){:root[data-sport="football"]:not([data-theme="light"]){--bg:#0f1a13;--surface:#17261d;--fg:#e7efea;--muted:#96b0a0;--line:#293d31;--soft:#1e2f24;--court:#29a357;--court-ink:#ffffff;--ball:#fde047;--ball-ink:#3a2f00;color-scheme:dark}}
+:root[data-theme="dark"][data-sport="football"]{--bg:#0f1a13;--surface:#17261d;--fg:#e7efea;--muted:#96b0a0;--line:#293d31;--soft:#1e2f24;--court:#29a357;--court-ink:#ffffff;--ball:#fde047;--ball-ink:#3a2f00;color-scheme:dark}
+@media (prefers-color-scheme: dark){:root[data-sport="basketball"]:not([data-theme="light"]){--bg:#1a130f;--surface:#261d17;--fg:#efe9e7;--muted:#b0a096;--line:#3d3029;--soft:#2f241e;--court:#a35529;--court-ink:#ffffff;--ball:#fbbf77;--ball-ink:#3d1a05;color-scheme:dark}}
+:root[data-theme="dark"][data-sport="basketball"]{--bg:#1a130f;--surface:#261d17;--fg:#efe9e7;--muted:#b0a096;--line:#3d3029;--soft:#2f241e;--court:#a35529;--court-ink:#ffffff;--ball:#fbbf77;--ball-ink:#3d1a05;color-scheme:dark}
+@media (prefers-color-scheme: dark){:root[data-sport="pickleball"]:not([data-theme="light"]){--bg:#0f1a19;--surface:#172625;--fg:#e7efee;--muted:#96b0ae;--line:#293d3c;--soft:#1e2f2d;--court:#29a39a;--court-ink:#ffffff;--ball:#d9f450;--ball-ink:#1f2a05;color-scheme:dark}}
+:root[data-theme="dark"][data-sport="pickleball"]{--bg:#0f1a19;--surface:#172625;--fg:#e7efee;--muted:#96b0ae;--line:#293d3c;--soft:#1e2f2d;--court:#29a39a;--court-ink:#ffffff;--ball:#d9f450;--ball-ink:#1f2a05;color-scheme:dark}
+@media (prefers-color-scheme: dark){:root[data-sport="squash"]:not([data-theme="light"]){--bg:#1a0f12;--surface:#26171c;--fg:#efe7e9;--muted:#b0969e;--line:#3d292f;--soft:#2f1e23;--court:#a3294d;--court-ink:#ffffff;--ball:#f6c1cf;--ball-ink:#3d0a19;color-scheme:dark}}
+:root[data-theme="dark"][data-sport="squash"]{--bg:#1a0f12;--surface:#26171c;--fg:#efe7e9;--muted:#b0969e;--line:#3d292f;--soft:#2f1e23;--court:#a3294d;--court-ink:#ffffff;--ball:#f6c1cf;--ball-ink:#3d0a19;color-scheme:dark}
+@media (prefers-color-scheme: dark){:root[data-sport="volleyball"]:not([data-theme="light"]){--bg:#1a150f;--surface:#261f17;--fg:#efebe7;--muted:#b0a596;--line:#3d3429;--soft:#2f271e;--court:#a36d29;--court-ink:#ffffff;--ball:#fde68a;--ball-ink:#422006;color-scheme:dark}}
+:root[data-theme="dark"][data-sport="volleyball"]{--bg:#1a150f;--surface:#261f17;--fg:#efebe7;--muted:#b0a596;--line:#3d3429;--soft:#2f271e;--court:#a36d29;--court-ink:#ffffff;--ball:#fde68a;--ball-ink:#422006;color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.5;direction:rtl}
 .wrap{max-width:640px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
@@ -128,14 +147,45 @@ td .sub::before{content:" · "}
 .rotation li.paid .st{border-color:var(--court);color:var(--court)}
 .rotation li.next{outline:2px solid var(--court)}
 .rotation li.next .st{background:var(--court);color:var(--court-ink);border-color:var(--court)}
+.gear{position:fixed;z-index:30;top:calc(env(safe-area-inset-top,0px) + 12px);left:max(12px,env(safe-area-inset-left,0px));width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--court);display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.12)}
+.gear svg{width:22px;height:22px}
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.35)}
+.settings{position:fixed;z-index:50;top:0;bottom:0;left:0;width:min(340px,88vw);background:var(--surface);color:var(--fg);box-shadow:4px 0 24px rgba(0,0,0,.2);padding:calc(env(safe-area-inset-top,0px) + 18px) 18px calc(env(safe-area-inset-bottom,0px) + 18px) max(18px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:18px;overflow-y:auto}
+.settings-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.settings-head h2{font-size:1.4rem}
+.x{font:inherit;font-size:1.2rem;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+.set-block{display:flex;flex-direction:column;gap:8px}
+.set-block h3{margin:0;font-size:.85rem;font-weight:500;color:var(--muted);letter-spacing:.02em}
+.set-note{margin:0;font-size:.8rem;color:var(--muted)}
+.sports{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.sports button{font:inherit;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;font-weight:500;text-align:start}
+.sports button[aria-pressed=true]{background:var(--court);color:var(--court-ink);border-color:var(--court)}
+.sports .sw{width:14px;height:14px;border-radius:50%;flex:none;border:2px solid rgba(255,255,255,.8);box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.rotation li.me span:first-child::after{content:" (אני)";color:var(--muted);font-weight:400}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
 </head>
 <body>
+<button type="button" class="gear" id="settingsBtn" aria-label="הגדרות" aria-expanded="false" aria-controls="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="settings" id="settings" hidden aria-labelledby="setTitle">
+  <div class="settings-head"><h2 id="setTitle">הגדרות</h2><button type="button" class="x" id="settingsClose" aria-label="סגירת ההגדרות">✕</button></div>
+  <div class="set-block">
+    <h3>פרטי המשתמש</h3>
+    <label for="meName">השם שלי</label>
+    <select id="meName"><option value="">בחרו את השם שלכם…</option></select>
+    <p class="set-note">השם ייבחר אוטומטית ברישום הזמנה, ויסומן "(אני)" ברשימת הסבב.</p>
+  </div>
+  <div class="set-block">
+    <h3>ענף ספורט</h3>
+    <div class="sports" id="sportBtns" role="group" aria-label="בחירת ענף ספורט"></div>
+    <p class="set-note">משנה את הצבעים והכותרות אצלך בלבד. הנתונים והסבב משותפים לכל הקבוצה.</p>
+  </div>
+</aside>
 <div class="wrap">
   <header aria-live="polite">
-    <h1>הזמנות מגרשי טניס · יבנה · רחובות · ראשון לציון · מזכרת בתיה</h1>
+    <h1><span id="sportTitle">הזמנות מגרשי טניס</span> · יבנה · רחובות · ראשון לציון · מזכרת בתיה</h1>
     <p class="eyebrow">הזמין אחרון</p>
     <p class="last-name" id="lastName">טוען…</p>
     <div class="last-meta" id="lastMeta"><span class="ago">ההזמנה האחרונה תופיע כאן</span></div>
@@ -203,6 +253,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261117a"></script>
+<script src="app.js?v=20261119a"></script>
 </body>
 </html>
