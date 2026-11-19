@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261120c";
+  const APP_VERSION = "20261120d";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -23,11 +23,11 @@
   const SPORTS = [
     {id:"tennis", name:"טניס", emoji:"🎾", color:"#1f6b45"},
     {id:"padel", name:"פאדל", emoji:"🎾", color:"#1d4f91"},
-    {id:"football", name:"כדורגל", emoji:"⚽", color:"#166534"},
-    {id:"basketball", name:"כדורסל", emoji:"🏀", color:"#b4531c"},
+    {id:"football", name:"כדורגל", emoji:"⚽", color:"#111111"},
+    {id:"basketball", name:"כדורסל", emoji:"🏀", color:"#e8590c"},
     {id:"pickleball", name:"פיקלבול", emoji:"🏓", color:"#0f766e"},
     {id:"squash", name:"סקווש", emoji:"🎾", color:"#7f1d3a"},
-    {id:"volleyball", name:"כדורעף", emoji:"🏐", color:"#9a5b0b"},
+    {id:"volleyball", name:"כדורעף", emoji:"🏐", color:"#6d28d9"},
   ];
   const sportOf = id => SPORTS.find(x=>x.id===id) || SPORTS[0];
   const ROLE_HE = {owner:"בעל הקבוצה", admin:"מנהל", member:"שחקן"};
