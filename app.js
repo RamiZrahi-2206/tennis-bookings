@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261120b";
+  const APP_VERSION = "20261120c";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -452,7 +452,6 @@
     else { box.textContent="🎉 כולם שילמו בסבב. מנהל הקבוצה יכול לפתוח סבב חדש."; box.classList.add("done"); }
     rotation.forEach(n=>{
       const li=document.createElement("li"); const nm=document.createElement("span"); nm.textContent=n;
-      const rl=roleOf(n); if(rl!=="member"){ const t=document.createElement("span"); t.className="role-tag "+rl; t.textContent=ROLE_HE[rl]; nm.append(" ", t); }
       const st=document.createElement("span"); st.className="st";
       if(paid.includes(n)){ st.textContent="שילם ✓"; li.className="paid"; }
       else if(n===next){ st.textContent= waiting.has(n) ? "ממתין לתאריך חדש" : "הבא בתור"; li.className="next"; }
