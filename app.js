@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261119b";
+  const APP_VERSION = "20261119c";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -43,7 +43,7 @@
     SPORTS.forEach(sp=>{ const b=document.createElement("button"); b.type="button"; b.setAttribute("aria-pressed", String(sp.id===sport.id));
       const sw=document.createElement("span"); sw.className="sw"; sw.style.background=sp.color;
       const l=document.createElement("span"); l.textContent=sp.emoji+" "+sp.name;
-      b.append(sw,l); b.onclick=()=>{ if(sport.id===sp.id) return; sport=sp; store.set("sport", sp.id); editingId=null; draft=null; rows=[]; rotation=[]; roundStarts=[]; ready=false; applySport(); render(); if(sb) load(); }; box.appendChild(b); });
+      b.append(sw,l); b.onclick=()=>{ if(sport.id===sp.id) return; sport=sp; store.set("sport", sp.id); editingId=null; draft=null; rows=[]; members=[]; players=[]; if(typeof loadAuth==="function") loadAuth(); rotation=[]; roundStarts=[]; ready=false; applySport(); render(); if(sb) load(); }; box.appendChild(b); });
   }
   function openSettings(open){
     $("settings").hidden=!open; $("scrim").hidden=!open; $("settingsBtn").setAttribute("aria-expanded", String(open));
@@ -55,7 +55,7 @@
   document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("settings").hidden) openSettings(false); });
   $("meName").onchange=e=>{ me=e.target.value; store.set("tennis-name", me); if(me && players.includes(me)) $("name").value=me; render(); };
   applySport();
-  let court = COURTS[0], filter = "הכל", rows = [], players = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false, editingId = null, draft = null;
+  let court = COURTS[0], filter = "הכל", rows = [], players = [], members = [], rotation = [], roundStarts = [], allPaid = false, sb = null, pendingDel = null, ready = false, editingId = null, draft = null;
 
   const todayISO = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
   const dmy = iso => { const [y,m,d]=iso.split("-"); return d+"/"+m+"/"+y.slice(2); };
@@ -86,15 +86,15 @@
     const loadedFor = sport.id;
     const [b,p,r,ro] = await Promise.all([
       sb.from("bookings").select("id,name,date,court,notes,created_at,status").eq("sport", sport.id).order("date",{ascending:false}).limit(2000),
-      sb.from("players").select("name"),
+      sb.from("group_members").select("name,role").eq("sport", sport.id),
       sb.from("rounds").select("started_at").eq("sport", sport.id).order("started_at",{ascending:false}).limit(2),
       sb.from("rotation").select("name,sort_order").eq("sport", sport.id).order("sort_order")
     ]);
     if(loadedFor!==sport.id) return; // the sport changed while loading
     if(b.error){ setMsg("לא הצלחנו לטעון את ההזמנות. בדקו את החיבור ונסו לרענן.", true); return; }
-    rows = b.data || []; players = (p.data||[]).map(x=>x.name); rotation = (ro.data||[]).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
+    rows = b.data || []; members = p.data||[]; players = members.map(x=>x.name); rotation = (ro.data||[]).map(x=>x.name); roundStarts = (r.data||[]).map(x=>Date.parse(x.started_at));
     if(!ready){ ready=true; $("submit").disabled=false; if($("msg").textContent==="מתחבר לרשימה המשותפת…") setMsg(""); }
-    render();
+    render(); renderAdmin(); if(!$("playersModal").hidden) renderPlayers();
   }
 
   function itemEl(r, isFirst){
@@ -256,6 +256,7 @@
       else if(n===next){ st.textContent= waiting.has(n) ? "ממתין לתאריך חדש" : "הבא בתור"; li.className="next"; }
       else { st.textContent="ממתין"; }
       if(n===me) li.classList.add("me");
+      const rl=roleOf(n); if(rl!=="member"){ const t=document.createElement("span"); t.className="role-tag "+rl; t.textContent=ROLE_HE[rl]; nm.append(" ", t); }
       li.append(nm,st); list.appendChild(li);
     });
   }
@@ -313,10 +314,155 @@
     $("submit").disabled=false;
   });
 
+
+  // ---- group roles: owner / admin / member. Every change is checked on the server with the caller's code. ----
+  const ROLE_HE = {owner:"בעל הקבוצה", admin:"מנהל", member:"שחקן"};
+  const ERR_HE = {wrong_pin:"הקוד שגוי.", locked:"יותר מדי ניסיונות. נסו שוב בעוד 15 דקות.", needs_pin:"עדיין לא הוגדר לך קוד.", not_admin:"רק מנהל יכול לעשות את זה.",
+    not_owner:"רק בעל הקבוצה יכול לעשות את זה.", is_owner:"אי אפשר לשנות או להסיר את בעל הקבוצה.", bad_pin:"קוד צריך להיות 4 עד 8 ספרות.", bad_name:"כתבו שם מלא (2-40 תווים).",
+    exists:"השחקן כבר בקבוצה.", not_found:"השחקן לא נמצא בקבוצה.", has_owner:"לקבוצה כבר יש בעלים.", confirm_mismatch:"השם שהוקלד לא תואם.", same:"אתם כבר בעלי הקבוצה."};
+  const errText = e => ERR_HE[e] || "משהו השתבש. נסו שוב.";
+  const roleOf = n => (members.find(m=>m.name===n)||{}).role || "member";
+  const authKey = () => "auth:"+sport.id;
+  let auth = null; // {name, pin, role}
+  function loadAuth(){ try{ auth = JSON.parse(store.get(authKey())||"null"); }catch(e){ auth=null; } }
+  function saveAuth(a){ auth=a; store.set(authKey(), a?JSON.stringify(a):""); }
+  loadAuth();
+  const roleTag = r => '<span class="role-tag '+r+'">'+ROLE_HE[r]+'</span>';
+  const esc = t => String(t).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const amsg = (t,err)=>{ const m=$("adminMsg"); m.textContent=t||""; m.className="msg"+(err?" err":""); };
+  const pmsg = (t,err)=>{ const m=$("pmMsg"); m.textContent=t||""; m.className="msg"+(err?" err":""); };
+  async function rpc(fn, args){ const {data,error} = await sb.rpc(fn, args); if(error) return {ok:false,error:"network"}; return data; }
+
+  function renderAdmin(){
+    // my role, next to "my name"
+    const mr=$("myRole"); if(me && players.includes(me)){ mr.hidden=false; mr.innerHTML="התפקיד שלי בקבוצה: "+roleTag(roleOf(me)); } else mr.hidden=true;
+    if(auth && (auth.name!==me && me) ) { /* signed in as someone else on this device: keep, but show who */ }
+    if(auth && !members.some(m=>m.name===auth.name && m.role!=="member")) saveAuth(null); // lost admin rights
+    if(auth){ const r=roleOf(auth.name); if(r!==auth.role) saveAuth({...auth, role:r}); }
+    const body=$("adminBody"); const hasOwner = members.some(m=>m.role==="owner");
+    if(!ready){ body.innerHTML=""; return; }
+    if(!hasOwner){
+      body.innerHTML='<div class="admin-row"><p class="set-note">לקבוצת '+esc(sport.name)+' אין עדיין בעלים. מי שפותח אותה הופך לבעל הקבוצה ויכול לנהל שחקנים ומנהלים.</p>'
+        +'<label for="clName">השם שלכם</label><input type="text" id="clName" maxlength="40" value="'+esc(me||"")+'">'
+        +'<label for="clPin">בחרו קוד אישי (4-8 ספרות)</label><input type="password" inputmode="numeric" id="clPin" class="pin" maxlength="8" autocomplete="new-password">'
+        +'<button type="button" class="btn solid" id="clGo">פתח את הקבוצה כבעלים</button></div>';
+      $("clGo").onclick=async()=>{ const n=$("clName").value.trim(), pin=$("clPin").value.trim();
+        const r=await rpc("group_claim",{p_sport:sport.id,p_name:n,p_pin:pin}); if(!r.ok){ amsg(errText(r.error),true); return; }
+        me=r.name; store.set("tennis-name", me); saveAuth({name:r.name,pin,role:"owner"}); amsg("הקבוצה נפתחה. אתם בעלי הקבוצה."); await load(); };
+      return;
+    }
+    if(auth){
+      body.innerHTML='<div class="admin-row"><p class="set-note">מחוברים כ-'+esc(auth.name)+' '+roleTag(auth.role)+'</p>'
+        +'<div class="share"><button type="button" class="btn solid" id="openPlayers">ניהול שחקנים</button><button type="button" class="btn" id="chPinBtn">שינוי קוד</button><button type="button" class="btn" id="signOut">יציאה</button></div>'
+        +'<div id="chPinWrap" hidden class="admin-row"><label for="chPinNew">קוד חדש (4-8 ספרות)</label><input type="password" inputmode="numeric" id="chPinNew" class="pin" maxlength="8" autocomplete="new-password"><button type="button" class="btn solid" id="chPinGo">שמור קוד</button></div></div>';
+      $("openPlayers").onclick=openPlayers;
+      $("signOut").onclick=()=>{ saveAuth(null); amsg("יצאתם מחשבון המנהל."); renderAdmin(); };
+      $("chPinBtn").onclick=()=>{ $("chPinWrap").hidden=!$("chPinWrap").hidden; };
+      $("chPinGo").onclick=async()=>{ const np=$("chPinNew").value.trim(); const r=await rpc("group_set_pin",{p_sport:sport.id,p_name:auth.name,p_old:auth.pin,p_new:np});
+        if(!r.ok){ amsg(errText(r.error),true); return; } saveAuth({...auth,pin:np}); amsg("הקוד עודכן."); renderAdmin(); };
+      return;
+    }
+    const admins = members.filter(m=>m.role!=="member").map(m=>m.name).sort((a,b)=>a.localeCompare(b,"he"));
+    const pre = admins.includes(me) ? me : "";
+    body.innerHTML='<div class="admin-row"><p class="set-note">כניסה לבעל הקבוצה ולמנהלים בלבד.</p>'
+      +'<label for="siName">מי אתם</label><select id="siName"><option value="">בחרו…</option>'+admins.map(n=>'<option'+(n===pre?' selected':'')+'>'+esc(n)+'</option>').join("")+'</select>'
+      +'<label for="siPin">קוד אישי</label><input type="password" inputmode="numeric" id="siPin" class="pin" maxlength="8" autocomplete="current-password">'
+      +'<button type="button" class="btn solid" id="siGo">כניסת מנהל</button>'
+      +'<div id="firstPin" hidden class="admin-row"><p class="set-note">עדיין לא הוגדר לך קוד. בחרו קוד אישי חדש:</p><input type="password" inputmode="numeric" id="fpPin" class="pin" maxlength="8" autocomplete="new-password" aria-label="קוד חדש"><button type="button" class="btn solid" id="fpGo">הגדר קוד והיכנס</button></div></div>';
+    $("siGo").onclick=async()=>{ const n=$("siName").value, pin=$("siPin").value.trim(); if(!n){ amsg("בחרו שם.",true); return; }
+      const r=await rpc("group_signin",{p_sport:sport.id,p_name:n,p_pin:pin});
+      if(!r.ok){ if(r.error==="needs_pin"){ $("firstPin").hidden=false; amsg(""); return; } amsg(errText(r.error),true); return; }
+      saveAuth({name:n,pin,role:r.role}); if(!me){ me=n; store.set("tennis-name", me); } amsg("נכנסתם כ"+ROLE_HE[r.role]+"."); render(); renderAdmin(); };
+    $("fpGo").onclick=async()=>{ const n=$("siName").value, np=$("fpPin").value.trim();
+      const r=await rpc("group_set_pin",{p_sport:sport.id,p_name:n,p_old:null,p_new:np}); if(!r.ok){ amsg(errText(r.error),true); return; }
+      saveAuth({name:n,pin:np,role:r.role}); amsg("הקוד נשמר ונכנסתם."); renderAdmin(); };
+  }
+
+  // "manage players" window
+  function openPlayers(){ if(!$("settings").hidden) openSettings(false); $("playersModal").hidden=false; $("modalScrim").hidden=false; pmsg(""); $("roleDialog").hidden=true; renderPlayers(); loadAudit(); $("pmClose").focus(); }
+  function closePlayers(){ $("playersModal").hidden=true; $("modalScrim").hidden=true; }
+  $("pmClose").onclick=closePlayers; $("modalScrim").onclick=closePlayers;
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape" && !$("playersModal").hidden) closePlayers(); });
+  const ORDER={owner:0,admin:1,member:2};
+  function renderPlayers(){
+    if(!auth){ closePlayers(); return; }
+    const ul=$("pmList"); ul.innerHTML="";
+    members.slice().sort((a,b)=>ORDER[a.role]-ORDER[b.role]||a.name.localeCompare(b.name,"he")).forEach(m=>{
+      const li=document.createElement("li");
+      li.innerHTML='<span class="nm">'+esc(m.name)+'</span>'+roleTag(m.role);
+      const canManage = m.role!=="owner" || false;
+      if(m.name!==auth.name && (canManage || auth.role==="owner")){
+        const b=document.createElement("button"); b.type="button"; b.textContent="ניהול הרשאות"; b.onclick=()=>openRole(m); li.appendChild(b);
+      }
+      if(m.role!=="owner" && m.name!==auth.name){
+        const rm=document.createElement("button"); rm.type="button"; rm.className="rm"; rm.textContent="הסר";
+        rm.onclick=()=>confirmBox("להסיר את "+m.name+" מהקבוצה? ההזמנות שלו נשארות בהיסטוריה.", "כן, הסר", async()=>{
+          const r=await rpc("group_remove_member",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_target:m.name}); afterAction(r, m.name+" הוסר מהקבוצה."); });
+        li.appendChild(rm);
+      }
+      ul.appendChild(li);
+    });
+  }
+  $("pmAdd").onclick=async()=>{ const n=$("pmAddName").value.trim(); if(!n) return;
+    const r=await rpc("group_add_member",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_name:n}); if(r.ok) $("pmAddName").value=""; afterAction(r, n+" נוסף לקבוצה."); };
+  $("pmAddName").addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); $("pmAdd").click(); } });
+  async function afterAction(r, okText){
+    if(!r.ok){ if(r.error==="wrong_pin"||r.error==="locked"||r.error==="not_admin"){ saveAuth(null); closePlayers(); renderAdmin(); amsg(errText(r.error)+" היכנסו שוב.",true); return; }
+      pmsg(errText(r.error),true); return; }
+    $("roleDialog").hidden=true; pmsg(okText); await load(); loadAudit();
+  }
+  function confirmBox(text, yes, onYes){
+    const d=$("roleDialog"); d.hidden=false;
+    d.innerHTML='<h3>אישור</h3><p class="set-note" style="font-size:.95rem;color:var(--fg)">'+esc(text)+'</p><div class="share"><button type="button" class="btn solid" id="cfYes">'+esc(yes)+'</button><button type="button" class="btn" id="cfNo">ביטול</button></div>';
+    $("cfNo").onclick=()=>{ d.hidden=true; }; $("cfYes").onclick=async()=>{ $("cfYes").disabled=true; await onYes(); };
+    d.scrollIntoView({block:"nearest"});
+  }
+  function openRole(m){
+    const d=$("roleDialog"); d.hidden=false;
+    const isOwnerActor = auth.role==="owner";
+    let html='<h3>הרשאות: '+esc(m.name)+' '+roleTag(m.role)+'</h3>';
+    if(m.role!=="owner"){
+      html+='<div class="role-opts"><label><input type="radio" name="rl" value="admin"'+(m.role==="admin"?" checked":"")+'> מנהל: מנהל שחקנים והרשאות</label>'
+        +'<label><input type="radio" name="rl" value="member"'+(m.role==="member"?" checked":"")+'> שחקן רגיל</label></div>'
+        +'<div id="newAdminPin" hidden class="admin-row"><label for="napPin">קוד ראשון למנהל החדש (4-8 ספרות). מסרו לו אותו, והוא יוכל לשנות אותו.</label><input type="text" inputmode="numeric" id="napPin" class="pin" maxlength="8"></div>'
+        +'<div class="share"><button type="button" class="btn solid" id="rlSave">שמור</button><button type="button" class="btn" id="rlCancel">ביטול</button></div>';
+    }
+    if(isOwnerActor){
+      html+='<details><summary>העברת בעלות ל-'+esc(m.name)+'</summary><div class="admin-row" style="margin-top:8px"><p class="set-note">אחרי ההעברה '+esc(m.name)+' יהיה בעל הקבוצה, ואתם תהיו מנהלים. אי אפשר לבטל את זה בלי שהבעלים החדש יחזיר את הבעלות.</p>'
+        +'<label for="trConfirm">לאישור, הקלידו את השם: '+esc(m.name)+'</label><input type="text" id="trConfirm">'
+        +(m.role==="member"?'<label for="trPin">קוד ראשון לבעלים החדש (4-8 ספרות)</label><input type="text" inputmode="numeric" id="trPin" class="pin" maxlength="8">':'')
+        +'<button type="button" class="btn danger" id="trGo">העבר בעלות</button></div></details>';
+    }
+    d.innerHTML=html; d.scrollIntoView({block:"nearest"});
+    if(m.role!=="owner"){
+      const sync=()=>{ const v=d.querySelector('input[name="rl"]:checked').value; $("newAdminPin").hidden = !(v==="admin" && m.role!=="admin"); };
+      d.querySelectorAll('input[name="rl"]').forEach(i=>i.onchange=sync); sync();
+      $("rlCancel").onclick=()=>{ d.hidden=true; };
+      $("rlSave").onclick=()=>{ const v=d.querySelector('input[name="rl"]:checked').value; if(v===m.role){ d.hidden=true; return; }
+        const pinNew = v==="admin" ? $("napPin").value.trim() : null;
+        if(v==="admin" && !/^[0-9]{4,8}$/.test(pinNew)){ pmsg(errText("bad_pin"),true); return; }
+        confirmBox(v==="admin" ? "להעניק ל"+m.name+" הרשאת מנהל?" : "לבטל ל"+m.name+" את הרשאת המנהל ולהחזיר אותו לשחקן רגיל?", "כן, אשר", async()=>{
+          const r=await rpc("group_set_role",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_target:m.name,p_role:v,p_target_pin:pinNew});
+          afterAction(r, v==="admin" ? m.name+" מונה למנהל." : m.name+" חזר להיות שחקן."); }); };
+    }
+    if(isOwnerActor) $("trGo").onclick=()=>{ const c=$("trConfirm").value.trim(), tp=$("trPin")?$("trPin").value.trim():null;
+      confirmBox("להעביר את הבעלות על קבוצת "+sport.name+" ל"+m.name+"? זו פעולה סופית.", "כן, העבר בעלות", async()=>{
+        const r=await rpc("group_transfer_owner",{p_sport:sport.id,p_actor:auth.name,p_pin:auth.pin,p_target:m.name,p_confirm:c,p_target_pin:tp});
+        if(r.ok) saveAuth({...auth, role:"admin"}); afterAction(r, "הבעלות הועברה ל"+m.name+"."); }); };
+  }
+  const ACTION_HE={set_owner:"הוגדר כבעלים",claim:"פתח את הקבוצה",set_pin:"עדכן קוד",add_member:"הוסיף שחקן",remove_member:"הסיר שחקן",make_admin:"מינה למנהל",make_member:"ביטל הרשאת מנהל",transfer_owner:"העביר בעלות"};
+  async function loadAudit(){
+    const {data} = await sb.from("audit_log").select("actor,action,target,at").eq("sport", sport.id).order("at",{ascending:false}).limit(40);
+    const ul=$("auditList"); ul.innerHTML="";
+    (data||[]).forEach(a=>{ const li=document.createElement("li"); const d=new Date(a.at);
+      li.textContent=d.toLocaleDateString("he-IL")+" "+d.toLocaleTimeString("he-IL",{hour:"2-digit",minute:"2-digit"})+" · "+a.actor+" "+(ACTION_HE[a.action]||a.action)+(a.target&&a.target!==a.actor?": "+a.target:""); ul.appendChild(li); });
+    if(!ul.children.length) ul.innerHTML="<li>אין עדיין שינויים.</li>";
+  }
+
   render();
   if(!window.supabase){ setMsg("לא הצלחנו להתחבר. בדקו את החיבור לאינטרנט ורעננו.", true); return; }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   load();
-  sb.channel("bookings-live").on("postgres_changes",{event:"*",schema:"public",table:"bookings"},()=>load()).on("postgres_changes",{event:"INSERT",schema:"public",table:"rounds"},()=>load()).on("postgres_changes",{event:"*",schema:"public",table:"rotation"},()=>load()).subscribe();
+  sb.channel("bookings-live").on("postgres_changes",{event:"*",schema:"public",table:"bookings"},()=>load()).on("postgres_changes",{event:"INSERT",schema:"public",table:"rounds"},()=>load()).on("postgres_changes",{event:"*",schema:"public",table:"rotation"},()=>load()).on("postgres_changes",{event:"*",schema:"public",table:"group_members"},()=>load()).subscribe();
   document.addEventListener("visibilitychange",()=>{ if(!document.hidden) load(); });
 })();

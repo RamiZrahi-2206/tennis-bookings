@@ -165,6 +165,29 @@ td .sub::before{content:" · "}
 .join-row{display:flex;gap:8px}
 .join-row input{flex:1;min-width:0;direction:ltr;font-size:.8rem}
 .join-row button{font:inherit;font-weight:500;padding:8px 12px;border-radius:10px;border:1px solid var(--court);background:var(--court);color:var(--court-ink);cursor:pointer;white-space:nowrap}
+.role-tag{display:inline-block;font-size:.72rem;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap;vertical-align:middle}
+.role-tag.owner{background:var(--court);color:var(--court-ink);border-color:var(--court)}
+.role-tag.admin{border-color:var(--court);color:var(--court)}
+.admin-row{display:flex;flex-direction:column;gap:8px}
+.admin-row .share{gap:8px}
+.btn{font:inherit;font-weight:500;padding:9px 14px;border-radius:10px;border:1px solid var(--court);background:transparent;color:var(--court);cursor:pointer}
+.btn.solid{background:var(--court);color:var(--court-ink)}
+.btn.danger{border-color:var(--danger);color:var(--danger)}
+.pin{direction:ltr;letter-spacing:.3em;text-align:center}
+.modal{position:fixed;z-index:60;inset:auto 0 0 0;max-height:92vh;overflow-y:auto;background:var(--surface);color:var(--fg);border-radius:18px 18px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 18px) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:14px;box-shadow:0 -6px 30px rgba(0,0,0,.25)}
+@media (min-width:700px){.modal{inset:6vh auto auto 50%;transform:translateX(-50%);width:560px;border-radius:18px;max-height:88vh}}
+#modalScrim{z-index:55}
+.members{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.members li{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 12px;border-radius:10px;background:var(--soft)}
+.members li .nm{flex:1;min-width:8em;font-weight:500}
+.members li button{font:inherit;font-size:.8rem;padding:5px 10px;border-radius:8px;border:1px solid var(--court);background:var(--surface);color:var(--court);cursor:pointer}
+.members li button.rm{border-color:var(--line);color:var(--muted)}
+.role-dialog{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:12px;border:2px solid var(--court);background:var(--bg)}
+.role-dialog h3{margin:0;font-size:1rem}
+.role-opts{display:flex;flex-direction:column;gap:6px}
+.role-opts label{display:flex;gap:8px;align-items:center;font-size:.95rem;color:var(--fg)}
+.audit summary{cursor:pointer;color:var(--muted);font-size:.9rem}
+.audit ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:.82rem;color:var(--muted)}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -179,6 +202,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <label for="meName">השם שלי</label>
     <select id="meName"><option value="">בחרו את השם שלכם…</option></select>
     <p class="set-note">השם ייבחר אוטומטית ברישום הזמנה, ויסומן "(אני)" ברשימת הסבב.</p>
+    <p class="set-note" id="myRole" hidden></p>
   </div>
   <div class="set-block">
     <h3>ענף ספורט</h3>
@@ -188,7 +212,21 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <div class="join-row"><input type="text" id="sportLink" readonly><button type="button" id="copyLink">העתק</button></div>
     <p class="set-note">מי שנכנס מהקישור הזה רואה ישר את הענף הזה.</p>
   </div>
+  <div class="set-block" id="adminBlock">
+    <h3>ניהול הקבוצה</h3>
+    <div id="adminBody"></div>
+    <p class="msg" id="adminMsg" role="status"></p>
+  </div>
 </aside>
+<div class="scrim" id="modalScrim" hidden></div>
+<div class="modal" id="playersModal" hidden role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+  <div class="settings-head"><h2 id="pmTitle">ניהול שחקנים</h2><button type="button" class="x" id="pmClose" aria-label="סגירה">✕</button></div>
+  <div class="join-row"><input type="text" id="pmAddName" maxlength="40" placeholder="שם מלא של שחקן חדש" aria-label="שם שחקן חדש"><button type="button" id="pmAdd">הוסף</button></div>
+  <ul class="members" id="pmList"></ul>
+  <div id="roleDialog" class="role-dialog" hidden></div>
+  <details class="audit"><summary>יומן שינויי הרשאות</summary><ul id="auditList"></ul></details>
+  <p class="msg" id="pmMsg" role="status"></p>
+</div>
 <div class="wrap">
   <header aria-live="polite">
     <h1><span id="sportTitle">הזמנות מגרשי טניס</span> · יבנה · רחובות · ראשון לציון · מזכרת בתיה</h1>
@@ -259,6 +297,6 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261119b"></script>
+<script src="app.js?v=20261119c"></script>
 </body>
 </html>
