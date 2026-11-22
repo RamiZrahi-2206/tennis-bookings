@@ -235,6 +235,9 @@ td .sub::before{content:" · "}
 .role-list li{display:flex;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:8px;background:var(--soft)}
 .legacy{padding:12px;border-radius:12px;border:2px dashed var(--court);display:flex;flex-direction:column;gap:8px}
 .reg-logo.brand{border-radius:22px;align-self:center;box-shadow:0 6px 24px rgba(1,23,54,.35)}
+.legal{text-align:center}
+.legal a{color:var(--muted)}
+.danger-zone summary{color:var(--danger)}
 textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--bg);color:var(--fg)}
 </style>
 
@@ -262,6 +265,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <button type="button" data-menu="security">🔒 אבטחה ושינוי סיסמה</button>
     <button type="button" data-menu="signout" class="danger-link">⎋ התנתקות</button>
   </nav>
+  <p class="set-note legal"><a href="privacy.html" target="_blank" rel="noopener">מדיניות פרטיות</a></p>
 </aside>
 
 <!-- full-screen screens: sign in / groups / create / join / profile / security / new password -->
@@ -282,6 +286,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
       <button type="button" class="linkish" id="authForgot">שכחתי סיסמה</button>
     </form>
     <p class="msg" id="authMsg" role="status"></p>
+    <p class="set-note legal"><a href="privacy.html" target="_blank" rel="noopener">מדיניות פרטיות</a> · <a href="delete-account.html" target="_blank" rel="noopener">מחיקת חשבון</a></p>
   </div>
 </div>
 
@@ -348,6 +353,14 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
     <label for="secPass2">שוב, לאימות</label><input type="password" id="secPass2" autocomplete="new-password" dir="ltr">
     <button type="button" class="btn solid" id="secGo">שנה סיסמה</button>
     <p class="msg" id="secMsg" role="status"></p>
+    <details class="audit danger-zone"><summary>מחיקת החשבון</summary>
+      <div class="admin-row" style="margin-top:8px">
+        <p class="set-note">המחיקה סופית. נמחקים השם, האימייל והסיסמה. קבוצה שאתם הבעלים שלה ואין בה עוד משתמשים עם חשבון תימחק יחד עם הנתונים שלה. בקבוצות אחרות ההזמנות שלכם נשארות בהיסטוריה תחת השם שלכם. <a href="delete-account.html" target="_blank" rel="noopener">פרטים נוספים</a></p>
+        <label for="delConfirm">לאישור, הקלידו את האימייל שלכם</label><input type="email" id="delConfirm" dir="ltr" autocomplete="off">
+        <button type="button" class="btn danger" id="delGo">מחק לצמיתות</button>
+        <p class="msg" id="delMsg" role="status"></p>
+      </div>
+    </details>
   </div>
 </div>
 
@@ -463,6 +476,7 @@ textarea.copy{width:100%;min-height:120px;font:inherit;font-size:.85rem;border:1
 </nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script src="app.js?v=20261120d"></script>
+<script src="app.js?v=20261122a"></script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>{navigator.serviceWorker.register("sw.js").catch(()=>{});});}</script>
 </body>
 </html>

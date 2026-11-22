@@ -1,7 +1,7 @@
 (function(){
   // Self-update: phones (and the home-screen app) keep old copies of the page. When the published
   // version differs from this code's version, reload once with a fresh URL.
-  const APP_VERSION = "20261120d";
+  const APP_VERSION = "20261122a";
   async function checkVersion(){
     try{
       const v=(await (await fetch("version.txt?t="+Date.now(),{cache:"no-store"})).text()).trim();
@@ -34,7 +34,7 @@
   const ERR_HE = {not_admin:"רק מנהל הקבוצה יכול לעשות את זה.", not_owner:"רק בעל הקבוצה יכול לעשות את זה.", is_owner:"אי אפשר לשנות או להסיר את בעל הקבוצה.",
     bad_name:"כתבו שם של 2 עד 40 תווים.", exists:"השם כבר קיים בקבוצה.", not_found:"לא נמצא.", confirm_mismatch:"השם שהוקלד לא תואם.", same:"אתם כבר בעלי הקבוצה.",
     no_account:"לשחקן הזה אין עדיין חשבון. רק מי שנרשם לאפליקציה יכול להיות מנהל.", linked:"השחקן הזה כבר מחובר לחשבון אחר.", wrong_pin:"הקוד שגוי.",
-    bad_code:"קישור ההצטרפות לא תקף. בקשו קישור חדש ממנהל הקבוצה.", no_name:"הוסיפו שם מלא בפרופיל שלכם קודם.", bad_sport:"בחרו ענף ספורט.", not_signed_in:"צריך להתחבר קודם."};
+    owner_of_groups:"אתם בעלים של קבוצה שיש בה עוד משתמשים. העבירו קודם את הבעלות (ניהול הקבוצה ← ניהול הרשאות), ואז מחקו את החשבון.", bad_code:"קישור ההצטרפות לא תקף. בקשו קישור חדש ממנהל הקבוצה.", no_name:"הוסיפו שם מלא בפרופיל שלכם קודם.", bad_sport:"בחרו ענף ספורט.", not_signed_in:"צריך להתחבר קודם."};
   const errText = e => ERR_HE[e] || "משהו השתבש. נסו שוב.";
   const $ = id => document.getElementById(id);
   const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ if(v==null||v==="") localStorage.removeItem(k); else localStorage.setItem(k,v); }catch(e){} } };
@@ -117,7 +117,7 @@
     else if(m==="groups"||m==="switch") openGroups(true);
     else if(m==="create") openCreate();
     else if(m==="manage") openManage();
-    else if(m==="security"){ $("secPass").value=""; $("secPass2").value=""; say("secMsg",""); showScreen("securityScreen"); }
+    else if(m==="security"){ $("secPass").value=""; $("secPass2").value=""; say("secMsg",""); $("delConfirm").value=""; say("delMsg",""); showScreen("securityScreen"); }
     else if(m==="signout") signOut();
   });
 
@@ -166,6 +166,17 @@
     if(p.length<8){ say("secMsg","לפחות 8 תווים.",true); return; } if(p!==p2){ say("secMsg","הסיסמאות לא זהות.",true); return; }
     const {error} = await sb.auth.updateUser({password:p});
     say("secMsg", error ? "לא נשמר: "+error.message : "הסיסמה שונתה.", !!error);
+  };
+  $("delGo").onclick=async()=>{
+    const em=$("delConfirm").value.trim();
+    if(!user || em.toLowerCase()!==String(user.email).toLowerCase()){ say("delMsg","האימייל שהוקלד לא תואם לחשבון.",true); return; }
+    $("delGo").disabled=true;
+    const r=await rpc("delete_my_account",{p_confirm_email:em});
+    $("delGo").disabled=false;
+    if(!r.ok){ say("delMsg",errText(r.error),true); return; }
+    store.set("group",""); store.set("tab","");
+    await sb.auth.signOut();
+    say("authMsg","החשבון נמחק. תודה שהשתמשתם ב-MatchPoint.");
   };
   $("securityClose").onclick=()=>showScreen(group?null:"groupsScreen");
   async function signOut(){ await sb.auth.signOut(); }
